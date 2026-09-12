@@ -1,0 +1,36 @@
+{
+  "name": "Лабиринт пыльного мстителя",
+  "short_name": "Лабиринт пыльного мстителя",
+  "description": "Ты пылинка в огромном пыльном лабиринте, а по нему ползает гигантский робот-пылесос. Найди выход быстрее всех. 🌫",
+  "lang": "ru",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
+  "orientation": "landscape",
+  "background_color": "#100c08",
+  "theme_color": "#8a5a18",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
