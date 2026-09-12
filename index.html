@@ -40,21 +40,33 @@
   #страхЗал { height:100%; width:0%; background:linear-gradient(90deg,#facc15,#f97316,#dc2626); transition:width .12s linear; }
 
   /* ── управление ── */
-  #stick { position:fixed; left:18px; bottom:18px; width:118px; height:118px; z-index:8; border-radius:50%;
+  .pad { position:fixed; left:18px; bottom:18px; width:118px; height:118px; z-index:8; border-radius:50%;
     background:#ffffff10; border:2px solid #ffffff2a; touch-action:none; display:none; }
-  body.play #stick { display:block; }
-  #knob { position:absolute; left:50%; top:50%; width:54px; height:54px; margin:-27px 0 0 -27px;
+  body.play .pad.p1 { display:block; }
+  body.play.вдвоём .pad.p2 { display:block; }
+  body.вдвоём .pad.p1, body.вдвоём .abtn.p1 { bottom:calc(50% + 12px); }
+  .pad > div { position:absolute; left:50%; top:50%; width:54px; height:54px; margin:-27px 0 0 -27px;
     border-radius:50%; background:radial-gradient(circle at 35% 30%,#efe6d6,#a99a8d); box-shadow:0 0 18px #d8c9ae99; }
+  #knob2 { background:radial-gradient(circle at 35% 30%,#d6e9ff,#7d95b8) !important; }
+  /* подписи, кто на какой половине */
+  .ктоНадпись { position:fixed; left:50%; transform:translateX(-50%); z-index:9; display:none;
+    background:#1a130ccc; border:2px solid #ffffff26; border-radius:10px; padding:3px 10px;
+    font:800 12px system-ui; color:#ffd98a; }
+  body.play.вдвоём .ктоНадпись { display:block; }
+  #ктоВерх { top:calc(50% - 26px); }
+  #ктоНиз  { bottom:8px; }
   .abtn { position:fixed; z-index:8; width:74px; height:74px; border-radius:50%; display:none;
     align-items:center; justify-content:center; flex-direction:column; font-size:26px; line-height:1;
     border:2px solid #ffffff55; box-shadow:0 6px 0 #0007; cursor:pointer; }
-  body.play .abtn { display:flex; }
   .abtn small { font-size:8.5px; opacity:.92; margin-top:2px; }
   .abtn:active { transform:translateY(4px); box-shadow:0 2px 0 #0007; }
   .abtn.жмут { filter:brightness(1.5); }
-  #затаБтн { right:18px; bottom:22px; background:radial-gradient(circle at 35% 30%,#d9f99d,#3f6212); }
-  #рывокБтн { right:104px; bottom:22px; background:radial-gradient(circle at 35% 30%,#bfdbfe,#1d4ed8); }
-  #рывокБтн.пусто { filter:grayscale(.8) brightness(.6); }
+  #затаБтн, #затаБтн2 { right:18px; bottom:22px; background:radial-gradient(circle at 35% 30%,#d9f99d,#3f6212); }
+  #рывокБтн, #рывокБтн2 { right:104px; bottom:22px; background:radial-gradient(circle at 35% 30%,#bfdbfe,#1d4ed8); }
+  .abtn.пусто { filter:grayscale(.8) brightness(.6); }
+  body.play .abtn.p1 { display:flex; }
+  body.play .abtn.p2 { display:none; }
+  body.play.вдвоём .abtn.p2 { display:flex; }
 
   /* ── экраны ── */
   .screen { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center;
@@ -108,7 +120,7 @@
   <link rel="apple-touch-icon-precomposed" sizes="180x180" href="apple-touch-icon.png">
   <meta name="msapplication-TileImage" content="icon-192.png">
   <meta name="msapplication-TileColor" content="#8a5a18">
-  <script>window.__APP_VER = "0cd1251dbb";</script>
+  <script>window.__APP_VER = "d5b78c86a7";</script>
 </head>
 <body>
 <div id="err"></div>
@@ -129,9 +141,14 @@
   </div>
 </div>
 
-<div id="stick"><div id="knob"></div></div>
-<div class="abtn" id="затаБтн">🫥<small>ЗАТАИТЬСЯ</small></div>
-<div class="abtn" id="рывокБтн">💨<small>РЫВОК</small></div>
+<div id="stick" class="pad p1"><div id="knob"></div></div>
+<div class="abtn p1" id="затаБтн">🫥<small>ЗАТАИТЬСЯ</small></div>
+<div class="abtn p1" id="рывокБтн">💨<small>РЫВОК</small></div>
+<div id="stick2" class="pad p2"><div id="knob2"></div></div>
+<div class="abtn p2" id="затаБтн2">🫥<small>ЗАТАИТЬСЯ</small></div>
+<div class="abtn p2" id="рывокБтн2">💨<small>РЫВОК</small></div>
+<div id="ктоВерх" class="ктоНадпись">🌫 ПЫЛИНКА</div>
+<div id="ктоНиз" class="ктоНадпись">🤖 ПЫЛЕСОС</div>
 
 <div id="bigMsg"></div>
 <div id="say"></div>
@@ -158,6 +175,8 @@
         и только потом решётка выпустит тебя наружу.</div>
     </div>
   </div>
+  <div class="sub" style="font-size:13px;opacity:.85;margin-top:4px">За кого играем?</div>
+  <div id="заКогоРяд" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"></div>
   <button class="btn ghost" id="рекБтн">🏆 РЕКОРДЫ</button>
   <div class="sub" style="font-size:12.5px;opacity:.6">
     🎮 Джойстик слева · 🫥 затаиться · 💨 рывок<br>
@@ -478,37 +497,46 @@ function обновитьПыль(dt) {
   p.needsUpdate = true;
 }
 
-/* ═══════════ 🌫 ГЕРОЙ — ПЫЛИНКА ═══════════ */
-const пылинкаГр = new THREE.Group(); world.add(пылинкаГр);
-const телоМат = new THREE.MeshStandardMaterial({ color:0xf0ebdd, roughness:1,
-  emissive:0x9a9488, emissiveIntensity:0.42 });
-const телоП = new THREE.Mesh(new THREE.IcosahedronGeometry(0.46, 1), телоМат);
-телоП.castShadow = true; пылинкаГр.add(телоП);
-/* пушок во все стороны — иначе просто шарик */
-const пушинки = [];
-const пухМат = new THREE.MeshStandardMaterial({ color:0xfdf9ef, roughness:1,
-  emissive:0xa9a294, emissiveIntensity:0.45, transparent:true, opacity:0.95 });
-for (let i = 0; i < 62; i++) {
-  const a = Math.random()*Math.PI*2, b = Math.acos(2*Math.random()-1), r = 0.43;
-  const п = new THREE.Mesh(new THREE.ConeGeometry(0.038, rnd(0.35, 0.8), 4), пухМат);
-  п.position.set(Math.sin(b)*Math.cos(a)*r, Math.cos(b)*r, Math.sin(b)*Math.sin(a)*r);
-  п.lookAt(п.position.clone().multiplyScalar(3));
-  п.rotateX(Math.PI/2);
-  пылинкаГр.add(п); пушинки.push(п);
+/* ═══════════ 🌫 ГЕРОЙ — ПЫЛИНКА ═══════════
+   Сделана «фабрикой»: во вдвоём их две, у каждой свой цвет огонька. */
+function сделатьПылинку(огонёк) {
+  const гр = new THREE.Group(); world.add(гр);
+  const телоМат = new THREE.MeshStandardMaterial({ color:0xf0ebdd, roughness:1,
+    emissive:0x9a9488, emissiveIntensity:0.42 });
+  const телоП = new THREE.Mesh(new THREE.IcosahedronGeometry(0.46, 1), телоМат);
+  телоП.castShadow = true; гр.add(телоП);
+  const пушинки = [];
+  const пухМат = new THREE.MeshStandardMaterial({ color:0xfdf9ef, roughness:1,
+    emissive:0xa9a294, emissiveIntensity:0.45, transparent:true, opacity:0.95 });
+  for (let i = 0; i < 62; i++) {
+    const a = Math.random()*Math.PI*2, b = Math.acos(2*Math.random()-1), r = 0.43;
+    const п = new THREE.Mesh(new THREE.ConeGeometry(0.038, rnd(0.35, 0.8), 4), пухМат);
+    п.position.set(Math.sin(b)*Math.cos(a)*r, Math.cos(b)*r, Math.sin(b)*Math.sin(a)*r);
+    п.lookAt(п.position.clone().multiplyScalar(3));
+    п.rotateX(Math.PI/2);
+    гр.add(п); пушинки.push(п);
+  }
+  const глазаП = [];
+  [-0.16, 0.16].forEach(x => {
+    const г = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 10),
+      new THREE.MeshStandardMaterial({ color:0xffffff, emissive:0x554433, emissiveIntensity:0.3, roughness:0.3 }));
+    г.position.set(x, 0.1, 0.42); гр.add(г); глазаП.push(г);
+    const з = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8),
+      new THREE.MeshBasicMaterial({ color:0x1a1410 }));
+    з.position.set(x, 0.1, 0.52); гр.add(з); глазаП.push(з);
+  });
+  const светП = new THREE.PointLight(огонёк || 0xffe8c8, 3.2, 13, 1.6);
+  светП.position.y = 0.4; гр.add(светП);
+  const тень = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5),
+    new THREE.MeshBasicMaterial({ map:texПятно, color:0x000000, transparent:true, opacity:0.35, depthWrite:false }));
+  тень.rotation.x = -Math.PI/2; world.add(тень);
+  /* колечко под ногами: во вдвоём по нему видно, кто где */
+  const метка = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.86, 22),
+    new THREE.MeshBasicMaterial({ color:огонёк || 0xffe8c8, transparent:true, opacity:0,
+      depthWrite:false, side:THREE.DoubleSide }));
+  метка.rotation.x = -Math.PI/2; world.add(метка);
+  return { гр, телоМат, телоП, пушинки, пухМат, глазаП, светП, тень, метка };
 }
-const глазаП = [];
-[-0.16, 0.16].forEach(x => {
-  const г = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 10),
-    new THREE.MeshStandardMaterial({ color:0xffffff, emissive:0x554433, emissiveIntensity:0.3, roughness:0.3 }));
-  г.position.set(x, 0.1, 0.42); пылинкаГр.add(г); глазаП.push(г);
-  const з = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8),
-    new THREE.MeshBasicMaterial({ color:0x1a1410 }));
-  з.position.set(x, 0.1, 0.52); пылинкаГр.add(з); глазаП.push(з);
-});
-const светП = new THREE.PointLight(0xffe8c8, 3.2, 13, 1.6); светП.position.y = 0.4; пылинкаГр.add(светП);
-const тень = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5),
-  new THREE.MeshBasicMaterial({ map:texПятно, color:0x000000, transparent:true, opacity:0.35, depthWrite:false }));
-тень.rotation.x = -Math.PI/2; world.add(тень);
 
 /* ═══════════ 🤖 ГИГАНТСКИЙ РОБОТ-ПЫЛЕСОС ═══════════ */
 const пылесосГр = new THREE.Group(); world.add(пылесосГр);
@@ -874,10 +902,19 @@ function записатьРекорд(сек) {
 const времяТекст = с => Math.floor(с/60) + ':' + (с % 60 < 10 ? '0' : '') + (с % 60).toFixed(1);
 
 /* ═══════════ движение, камера, управление ═══════════ */
-const игрок = { x:0, z:0, скор:0, шаг:0 };
-let yaw = 0, pitch = 0.18, тело_yaw = 0;
-let затаился = false, рывокT = 0, рывокОст = 0;
+function новыйИгрок(огонёк, имя) {
+  return { имя, x:0, z:0, скор:0, yaw:0, pitch:0.18, тело_yaw:0,
+    затаился:false, рывокT:0, рывокОст:0, тянет:0, жив:true, вышел:false,
+    стик:{ x:0, y:0 }, вид:сделатьПылинку(огонёк), видКам:1, зум:1,
+    клав:{ вперёд:'KeyW', назад:'KeyS', влево:'KeyA', вправо:'KeyD' } };
+}
+const П1 = новыйИгрок(0xffe8c8, 'Пылинка');
+const П2 = новыйИгрок(0x9fd0ff, 'Второй');
+let вдвоём = false;
+let игроки = [П1];
 const R_ИГРОКА = 0.55;
+/* чтобы не переписывать полкода, игрок — это всегда «тот, за кого смотрим» */
+let игрок = П1;
 
 function столкнуть(x, z, r) {
   for (const с of стеныКороба) {
@@ -900,140 +937,181 @@ function стенаМежду(x1, z1, x2, z2) {
   return false;
 }
 /* 📐 «в углу»: круглый пылесос туда не достаёт (идея Марка) */
-function вУглу() {
-  const { i, j } = вКлетку(игрок.x, игрок.z);
+function вУглу(P) {
+  P = P || игрок;
+  const { i, j } = вКлетку(P.x, P.z);
   const c = кл(i, j); if (!c) return false;
-  const dx = игрок.x - мирX(i), dz = игрок.z - мирZ(j);
+  const dx = P.x - мирX(i), dz = P.z - мирZ(j);
   const край = Ш/2 - 1.7;
   if (Math.abs(dx) < край || Math.abs(dz) < край) return false;
   const поX = dx > 0 ? c.в : c.з, поZ = dz > 0 ? c.ю : c.с;
   return поX && поZ;
 }
 
-let стик = { x:0, y:0 };
 const keys = {};
-function направление() {
+function направление(P) {
   let fx = 0, fz = 0;
-  if (keys.KeyW || keys.ArrowUp)    fz += 1;
-  if (keys.KeyS || keys.ArrowDown)  fz -= 1;
-  if (keys.KeyA || keys.ArrowLeft)  fx -= 1;
-  if (keys.KeyD || keys.ArrowRight) fx += 1;
-  fx += стик.x; fz -= стик.y;
+  const к = P.клав;
+  if (к.вперёд.some(c => keys[c])) fz += 1;
+  if (к.назад .some(c => keys[c])) fz -= 1;
+  if (к.влево .some(c => keys[c])) fx -= 1;
+  if (к.вправо.some(c => keys[c])) fx += 1;
+  fx += P.стик.x; fz -= P.стик.y;
   const л = Math.hypot(fx, fz);
   return л > 1 ? { x:fx/л, z:fz/л, сила:1 } : { x:fx, z:fz, сила:л };
 }
-function двигатьИгрока(dt) {
-  const d = направление();
-  if (рывокT > 0) рывокT -= dt;
-  if (рывокОст > 0) рывокОст -= dt;
-  const базовая = затаился ? 0 : (рывокT > 0 ? 17 : 7.6);
+function двигатьИгрока(P, dt) {
+  if (!P.жив || P.вышел) return;
+  const d = направление(P);
+  if (P.рывокT > 0) P.рывокT -= dt;
+  if (P.рывокОст > 0) P.рывокОст -= dt;
+  const базовая = P.затаился ? 0 : (P.рывокT > 0 ? 17 : 7.6);
   if (d.сила > 0.06 && базовая > 0) {
-    const нx = Math.sin(yaw), нz = Math.cos(yaw);
+    const нx = Math.sin(P.yaw), нz = Math.cos(P.yaw);
     // ⚠️ экранное «право» — это мировое −x, поэтому у бокового шага минус
     let vx = (нx*d.z - нz*d.x) * базовая, vz = (нz*d.z + нx*d.x) * базовая;
-    const п = столкнуть(игрок.x + vx*dt, игрок.z + vz*dt, R_ИГРОКА);
-    игрок.x = п.x; игрок.z = п.z;
-    игрок.скор = Math.hypot(vx, vz)*d.сила;
+    const п = столкнуть(P.x + vx*dt, P.z + vz*dt, R_ИГРОКА);
+    P.x = п.x; P.z = п.z;
+    P.скор = Math.hypot(vx, vz)*d.сила;
     const цель = Math.atan2(vx, vz);
-    let раз = цель - тело_yaw; while (раз > Math.PI) раз -= Math.PI*2; while (раз < -Math.PI) раз += Math.PI*2;
-    тело_yaw += раз*Math.min(1, dt*14);
-  } else игрок.скор *= Math.pow(0.02, dt);
-  /* всасывание тянет даже когда стоишь */
-  if (тянет > 0.001) {
-    const dx = робот.x - игрок.x, dz = робот.z - игрок.z, q = Math.max(0.001, Math.hypot(dx, dz));
-    const п = столкнуть(игрок.x + dx/q*тянет*dt, игрок.z + dz/q*тянет*dt, R_ИГРОКА);
-    игрок.x = п.x; игрок.z = п.z;
+    let раз = цель - P.тело_yaw; while (раз > Math.PI) раз -= Math.PI*2; while (раз < -Math.PI) раз += Math.PI*2;
+    P.тело_yaw += раз*Math.min(1, dt*14);
+  } else P.скор *= Math.pow(0.02, dt);
+  if (P.тянет > 0.001) {
+    const dx = робот.x - P.x, dz = робот.z - P.z, q = Math.max(0.001, Math.hypot(dx, dz));
+    const п = столкнуть(P.x + dx/q*P.тянет*dt, P.z + dz/q*P.тянет*dt, R_ИГРОКА);
+    P.x = п.x; P.z = п.z;
   }
 }
-function рывокЖми() {
-  if (состояние !== 'игра' || рывокОст > 0 || затаился) return;
-  рывокT = 0.32; рывокОст = 3.2; Snd.рывок();
+function рывокЖми(P) {
+  P = P || П1;
+  if (состояние !== 'игра' || P.рывокОст > 0 || P.затаился || !P.жив) return;
+  P.рывокT = 0.32; P.рывокОст = 3.2; Snd.рывок();
 }
-function рисоватьИгрока(dt) {
-  пылинкаГр.position.set(игрок.x, 0.75 + Math.sin(время*3.4)*0.10, игрок.z);
-  пылинкаГр.rotation.y = тело_yaw;
-  телоП.rotation.x += игрок.скор*dt*0.5; телоП.rotation.z += игрок.скор*dt*0.3;
-  const пр = затаился ? 0.25 : 1;
-  телоМат.opacity = пр; телоМат.transparent = затаился;
-  пушинки.forEach((п, k) => { п.material.transparent = затаился; п.material.opacity = пр;
-    п.scale.setScalar(затаился ? 1.25 : 1 + Math.sin(время*6 + k)*0.12); });
-  глазаП.forEach(г => { г.visible = !затаился; });
-  светП.intensity = затаился ? 0.4 : 1.6;
-  тень.position.set(игрок.x, 0.03, игрок.z);
-  тень.material.opacity = затаился ? 0.15 : 0.35;
+function рисоватьИгрока(P, dt) {
+  const в = P.вид;
+  в.гр.visible = P.жив && !P.вышел;
+  в.тень.visible = в.гр.visible; в.метка.visible = в.гр.visible && вдвоём;
+  if (!в.гр.visible) return;
+  в.гр.position.set(P.x, 0.75 + Math.sin(время*3.4 + (P === П2 ? 1.7 : 0))*0.10, P.z);
+  в.гр.rotation.y = P.тело_yaw;
+  в.телоП.rotation.x += P.скор*dt*0.5; в.телоП.rotation.z += P.скор*dt*0.3;
+  const пр = P.затаился ? 0.25 : 1;
+  в.телоМат.opacity = пр; в.телоМат.transparent = P.затаился;
+  в.пухМат.opacity = пр*0.95;
+  в.пушинки.forEach((п, k) => п.scale.setScalar(P.затаился ? 1.25 : 1 + Math.sin(время*6 + k)*0.12));
+  в.глазаП.forEach(г => { г.visible = !P.затаился; });
+  в.светП.intensity = P.затаился ? 0.4 : 3.2;
+  в.тень.position.set(P.x, 0.03, P.z);
+  в.тень.material.opacity = P.затаился ? 0.15 : 0.35;
+  в.метка.position.set(P.x, 0.04, P.z);
+  в.метка.material.opacity = вдвоём ? 0.55 : 0;
 }
 
 const ВИДЫ = [ { имя:'близкая', d:4.2, h:3.0 }, { имя:'обычная', d:6.4, h:4.4 }, { имя:'сверху', d:7.0, h:11 } ];
-let видКам = 1, зумК = 1;
-window.__zoom = k => { зумК = clamp(2.0 - (k - 0.7)*0.95, 0.55, 2.0); return зумК; };
+const camera2 = new THREE.PerspectiveCamera(64, innerWidth/innerHeight, 0.1, 300);
+window.__zoom = k => { игроки.forEach(P => P.зум = clamp(2.0 - (k - 0.7)*0.95, 0.55, 2.0)); return П1.зум; };
 addEventListener('wheel', e => { if (состояние !== 'игра') return;
-  зумК = clamp(зумК + (e.deltaY > 0 ? 0.12 : -0.12), 0.55, 2.0); }, { passive:true });
+  П1.зум = clamp(П1.зум + (e.deltaY > 0 ? 0.12 : -0.12), 0.55, 2.0); }, { passive:true });
 const лучКам = new THREE.Raycaster();
-let тряска = 0, скримерT = 0;
-function камера(dt, мгновенно) {
-  if (скримерT > 0) {                         // 😱 камеру затягивает в пасть
+let тряска = 0, скримерT = 0, скримерКого = null;
+function камера(P, кам, dt, мгновенно) {
+  if (скримерT > 0 && скримерКого === P) {     // 😱 камеру затягивает в пасть
     const t = 1 - скримерT/1.1;
     const цx = робот.x + Math.sin(робот.yaw)*2.2, цz = робот.z + Math.cos(робот.yaw)*2.2;
-    camera.position.lerp(new THREE.Vector3(
-      игрок.x + (цx - игрок.x)*t, 1.4 - t*0.6, игрок.z + (цz - игрок.z)*t), 0.35);
-    camera.lookAt(робот.x, 0.9, робот.z);
-    camera.position.x += rnd(-1,1)*0.3*t; camera.position.y += rnd(-1,1)*0.3*t;
+    кам.position.lerp(new THREE.Vector3(
+      P.x + (цx - P.x)*t, 1.4 - t*0.6, P.z + (цz - P.z)*t), 0.35);
+    кам.lookAt(робот.x, 0.9, робот.z);
+    кам.position.x += rnd(-1,1)*0.3*t; кам.position.y += rnd(-1,1)*0.3*t;
     return;
   }
-  const В = ВИДЫ[видКам];
-  let d = В.d*зумК; const h = В.h*зумК;
+  const В = ВИДЫ[P.видКам];
+  let d = В.d*P.зум; const h = В.h*P.зум;
   const гy = 1.2;
-  const от = new THREE.Vector3(игрок.x, гy, игрок.z);
-  const назад = new THREE.Vector3(-Math.sin(yaw)*Math.cos(pitch), Math.sin(pitch) + 0.42,
-    -Math.cos(yaw)*Math.cos(pitch)).normalize();
+  const от = new THREE.Vector3(P.x, гy, P.z);
+  const назад = new THREE.Vector3(-Math.sin(P.yaw)*Math.cos(P.pitch), Math.sin(P.pitch) + 0.42,
+    -Math.cos(P.yaw)*Math.cos(P.pitch)).normalize();
   лучКам.set(от, назад); лучКам.far = d + 0.6;
   const пер = лучКам.intersectObjects(гЛаб.children, false);
   if (пер.length) d = Math.max(1.6, пер[0].distance - 0.5);
-  const цель = new THREE.Vector3(игрок.x - Math.sin(yaw)*d, гy + h*clamp(d/(В.d*зумК), 0.45, 1), игрок.z - Math.cos(yaw)*d);
-  if (мгновенно) camera.position.copy(цель); else camera.position.lerp(цель, 1 - Math.pow(0.0015, dt));
-  camera.lookAt(игрок.x + Math.sin(yaw)*2.4, 0.9 - Math.sin(pitch)*1.6, игрок.z + Math.cos(yaw)*2.4);
-  if (тряска > 0) { camera.position.x += rnd(-1,1)*тряска*0.2;
-    camera.position.y += rnd(-1,1)*тряска*0.2; camera.position.z += rnd(-1,1)*тряска*0.2; }
+  const цель = new THREE.Vector3(P.x - Math.sin(P.yaw)*d, гy + h*clamp(d/(В.d*P.зум), 0.45, 1), P.z - Math.cos(P.yaw)*d);
+  if (мгновенно) кам.position.copy(цель); else кам.position.lerp(цель, 1 - Math.pow(0.0015, dt));
+  кам.lookAt(P.x + Math.sin(P.yaw)*2.4, 0.9 - Math.sin(P.pitch)*1.6, P.z + Math.cos(P.yaw)*2.4);
+  if (тряска > 0) { кам.position.x += rnd(-1,1)*тряска*0.2;
+    кам.position.y += rnd(-1,1)*тряска*0.2; кам.position.z += rnd(-1,1)*тряска*0.2; }
+}
+/* два экрана: сверху первый игрок, снизу второй */
+function рисоватьКадр() {
+  const W = renderer.domElement.width / renderer.getPixelRatio();
+  const H = renderer.domElement.height / renderer.getPixelRatio();
+  if (!вдвоём || !П2) {
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, W, H);
+    camera.aspect = W/H; camera.updateProjectionMatrix();
+    renderer.render(scene, camera); return;
+  }
+  renderer.setScissorTest(true);
+  camera.aspect = camera2.aspect = W/(H/2);
+  camera.updateProjectionMatrix(); camera2.updateProjectionMatrix();
+  renderer.setViewport(0, H/2, W, H/2); renderer.setScissor(0, H/2, W, H/2);
+  renderer.render(scene, camera);
+  renderer.setViewport(0, 0, W, H/2); renderer.setScissor(0, 0, W, H/2);
+  renderer.render(scene, camera2);
 }
 
 addEventListener('keydown', e => {
   keys[e.code] = true;
   if (состояние !== 'игра') return;
-  if (e.code === 'Space') { e.preventDefault(); рывокЖми(); }
-  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') затаился = true;
-  if (e.code === 'KeyC') { видКам = (видКам + 1) % ВИДЫ.length; зумК = 1;
-    bigMsg('📷 ' + ВИДЫ[видКам].имя, 0.9, '#ffd98a'); }
+  if (e.code === 'Space')      { e.preventDefault(); рывокЖми(П1); }
+  if (e.code === 'ShiftLeft')  П1.затаился = true;
+  if (e.code === 'Enter' && П2)      { e.preventDefault(); рывокЖми(П2); }
+  if (e.code === 'ShiftRight' && П2) П2.затаился = true;
+  if (!П2 && e.code === 'ShiftRight') П1.затаился = true;
+  if (e.code === 'KeyC') { П1.видКам = (П1.видКам + 1) % ВИДЫ.length; П1.зум = 1;
+    bigMsg('📷 ' + ВИДЫ[П1.видКам].имя, 0.9, '#ffd98a'); }
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
 });
 addEventListener('keyup', e => { keys[e.code] = false;
-  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') затаился = false; });
-let look = null, стикИд = null;
-const стикЭл = $('stick');
-стикЭл.addEventListener('pointerdown', e => { e.preventDefault(); стикИд = e.pointerId; двигСтик(e.clientX, e.clientY); });
-renderer.domElement.addEventListener('pointerdown', e => {
-  if (состояние !== 'игра') return; look = { id:e.pointerId, x:e.clientX, y:e.clientY }; });
-addEventListener('pointermove', e => {
-  if (стикИд === e.pointerId) { двигСтик(e.clientX, e.clientY); return; }
-  if (look && e.pointerId === look.id) {
-    yaw -= (e.clientX - look.x)*0.005;
-    pitch = clamp(pitch + (e.clientY - look.y)*0.003, -0.15, 0.7);
-    look.x = e.clientX; look.y = e.clientY; } });
-const отпустить = e => {
-  if (look && e.pointerId === look.id) look = null;
-  if (стикИд === e.pointerId) { стикИд = null; стик = { x:0, y:0 }; $('knob').style.transform = ''; } };
-addEventListener('pointerup', отпустить); addEventListener('pointercancel', отпустить);
-function двигСтик(cx, cy) {
-  const r = стикЭл.getBoundingClientRect();
-  let dx = cx-(r.left+r.width/2), dy = cy-(r.top+r.height/2);
-  const max = r.width/2 - 14, len = Math.hypot(dx, dy);
-  if (len > max) { dx = dx/len*max; dy = dy/len*max; }
-  стик = { x: dx/max, y: dy/max };
-  $('knob').style.transform = `translate(${dx}px,${dy}px)`;
+  if (e.code === 'ShiftLeft') П1.затаился = false;
+  if (e.code === 'ShiftRight') { П1.затаился = false; if (П2) П2.затаился = false; } });
+const ручки = [];   // по одной на игрока: свой джойстик и свои кнопки
+function привязатьРучки(P, стикId, ручкаId, затаId, рывокId) {
+  const стикЭл = $(стикId), ручкаЭл = $(ручкаId);
+  if (!стикЭл) return;
+  let стикИд = null;
+  function двигСтик(cx, cy) {
+    const r = стикЭл.getBoundingClientRect();
+    let dx = cx-(r.left+r.width/2), dy = cy-(r.top+r.height/2);
+    const max = r.width/2 - 14, len = Math.hypot(dx, dy);
+    if (len > max) { dx = dx/len*max; dy = dy/len*max; }
+    P.стик = { x: dx/max, y: dy/max };
+    ручкаЭл.style.transform = `translate(${dx}px,${dy}px)`;
+  }
+  стикЭл.addEventListener('pointerdown', e => { e.preventDefault(); стикИд = e.pointerId; двигСтик(e.clientX, e.clientY); });
+  addEventListener('pointermove', e => { if (стикИд === e.pointerId) двигСтик(e.clientX, e.clientY); });
+  const пусть = e => { if (стикИд === e.pointerId) { стикИд = null; P.стик = { x:0, y:0 };
+    ручкаЭл.style.transform = ''; } };
+  addEventListener('pointerup', пусть); addEventListener('pointercancel', пусть);
+  const з = $(затаId), р = $(рывокId);
+  if (з) { з.addEventListener('pointerdown', e => { e.preventDefault(); P.затаился = true; з.classList.add('жмут'); });
+    ['pointerup','pointercancel','pointerleave'].forEach(t =>
+      з.addEventListener(t, () => { P.затаился = false; з.classList.remove('жмут'); })); }
+  if (р) р.addEventListener('pointerdown', e => { e.preventDefault(); рывокЖми(P); });
+  ручки.push({ P, стикЭл });
 }
-$('затаБтн').addEventListener('pointerdown', e => { e.preventDefault(); затаился = true; $('затаБтн').classList.add('жмут'); });
-['pointerup','pointercancel','pointerleave'].forEach(t =>
-  $('затаБтн').addEventListener(t, () => { затаился = false; $('затаБтн').classList.remove('жмут'); }));
-$('рывокБтн').addEventListener('pointerdown', e => { e.preventDefault(); рывокЖми(); });
+/* мышью крутим камеру того игрока, чья половина экрана под курсором */
+let look = null;
+renderer.domElement.addEventListener('pointerdown', e => {
+  if (состояние !== 'игра') return;
+  const P = (вдвоём && П2 && e.clientY > innerHeight/2) ? П2 : П1;
+  look = { id:e.pointerId, x:e.clientX, y:e.clientY, P }; });
+addEventListener('pointermove', e => {
+  if (look && e.pointerId === look.id) {
+    look.P.yaw -= (e.clientX - look.x)*0.005;
+    look.P.pitch = clamp(look.P.pitch + (e.clientY - look.y)*0.003, -0.15, 0.7);
+    look.x = e.clientX; look.y = e.clientY; } });
+addEventListener('pointerup', e => { if (look && e.pointerId === look.id) look = null; });
+addEventListener('pointercancel', e => { if (look && e.pointerId === look.id) look = null; });
 
 let msgT = 0, sayT = 0, время = 0;
 function bigMsg(t, сек, цвет) { const e = $('bigMsg'); e.textContent = t;
@@ -1044,10 +1122,16 @@ function вспышка(сила, цвет) { const f = $('flash'); f.style.back
   requestAnimationFrame(() => { f.style.transition = 'opacity .5s'; f.style.opacity = 0; }); }
 
 /* ═══════════ 🤖 МОЗГИ ПЫЛЕСОСА ═══════════ */
-const робот = { x:0, z:0, yaw:0, состояние:'патруль', путь:[], цель:null, память:0, думT:0 };
-let тянет = 0, состояние = 'меню', таймер = 0, опасность = 0, сердцеT = 0;
+const робот = { x:0, z:0, yaw:0, состояние:'патруль', путь:[], цель:null, память:0, думT:0, стоп:false };
+let состояние = 'меню', таймер = 0, опасность = 0, сердцеT = 0;
+let рульИгрок = null, заКого = 'пылинка';
+const РОЛИ = [
+  { id:'пылинка', имя:'🌫 За пылинку', d:'Убегай и найди выход' },
+  { id:'пылесос', имя:'🤖 За пылесос', d:'Лови пылинку, пока не удрала' },
+  { id:'вдвоём',  имя:'👥 Вдвоём',     d:'Сверху пылинка, снизу пылесос' },
+];
 
-function путьКл(от, до) {
+function путьКл(от, до, черезУбежища) {
   const всего = N*N, пред = new Array(всего).fill(-1);
   const старт = от.j*N + от.i, цель = до.j*N + до.i;
   if (старт < 0 || старт >= всего || цель < 0 || цель >= всего) return [];
@@ -1065,7 +1149,7 @@ function путьКл(от, до) {
       if (ni < 0 || nj < 0 || ni >= N || nj >= N) continue;
       const nc = nj*N + ni;
       if (пред[nc] !== -1) continue;
-      if (убежища.some(у => у.i === ni && у.j === nj)) continue;   // в убежище он не заезжает
+      if (!черезУбежища && убежища.some(у => у.i === ni && у.j === nj)) continue;   // в убежище он не заезжает
       пред[nc] = c; оч.push(nc);
       if (nc === цель) { нашли = true; break; }
     }
@@ -1085,58 +1169,115 @@ function новаяЦельПатруля() {
   }
   робот.цель = { i:0, j:0 };
 }
-function видитИгрока(d) {
+function видитИгрока(d, P) {
+  P = P || игрок;
   if (!слож.охотится) return false;
-  if (вУбежище(игрок.x, игрок.z)) return false;
+  if (вУбежище(P.x, P.z)) return false;
   if (d > 28) return false;
-  let раз = Math.atan2(игрок.x - робот.x, игрок.z - робот.z) - робот.yaw;
+  let раз = Math.atan2(P.x - робот.x, P.z - робот.z) - робот.yaw;
   while (раз > Math.PI) раз -= Math.PI*2; while (раз < -Math.PI) раз += Math.PI*2;
   const вЛуче = Math.abs(раз) < 0.78;
-  const рядом = d < (затаился ? 4.5 : 8.5);
+  const рядом = d < (P.затаился ? 4.5 : 8.5);
   if (!вЛуче && !рядом) return false;
-  if (затаился && d > 5.5) return false;              // стоишь смирно — ты просто пыль
-  return !стенаМежду(робот.x, робот.z, игрок.x, игрок.z);
+  if (P.затаился && d > 5.5) return false;            // стоишь смирно — ты просто пыль
+  return !стенаМежду(робот.x, робот.z, P.x, P.z);
 }
+function водитьПылесос(P, dt) {
+  const d = направление(P);
+  const скор = слож.скор * 1.15;
+  if (d.сила > 0.06) {
+    const нx = Math.sin(P.yaw), нz = Math.cos(P.yaw);
+    const vx = (нx*d.z - нz*d.x) * скор, vz = (нz*d.z + нx*d.x) * скор;
+    const п = столкнуть(робот.x + vx*dt, робот.z + vz*dt, 2.25);
+    робот.x = п.x; робот.z = п.z;
+    let цY = Math.atan2(vx, vz), раз = цY - робот.yaw;
+    while (раз > Math.PI) раз -= Math.PI*2; while (раз < -Math.PI) раз += Math.PI*2;
+    робот.yaw += раз*Math.min(1, dt*5);
+  }
+  робот.состояние = 'охота';
+  P.x = робот.x; P.z = робот.z;          // камера второго игрока едет за пылесосом
+  P.тело_yaw = робот.yaw;
+}
+/* 🤖 пылинка под управлением игры: бежит к кусочкам и выходу, прячется от пылесоса */
+function ботПылинки(P, dt) {
+  if (!P.жив || P.вышел) return;
+  const робD = Math.hypot(робот.x - P.x, робот.z - P.z);
+  let цельКл = null;
+  const ближУб = убежища.map(у => ({ у, d:Math.hypot(у.x - P.x, у.z - P.z) })).sort((a, b) => a.d - b.d)[0];
+  if (робD < 12 && ближУб && ближУб.d < 16) цельКл = { i:ближУб.у.i, j:ближУб.у.j };
+  else if (надоКусочков && собрано < надоКусочков) {
+    const св = кусочки.filter(к => !к.взят)
+      .map(к => ({ к, d:Math.hypot(к.x - P.x, к.z - P.z) })).sort((a, b) => a.d - b.d)[0];
+    if (св) цельКл = вКлетку(св.к.x, св.к.z);
+  }
+  if (!цельКл) цельКл = вКлетку(выходXZ.x, выходXZ.z);
+  P.думT = (P.думT || 0) - dt;
+  if (P.думT <= 0) { P.путь = путьКл(вКлетку(P.x, P.z), цельКл, true); P.думT = 0.5; }
+  const шаг = (P.путь && P.путь.length > 1) ? P.путь[1] : (P.путь && P.путь[0]);
+  let цx = шаг ? мирX(шаг.i) : выходXZ.x, цz = шаг ? мирZ(шаг.j) : выходXZ.z;
+  if (!шаг || (P.путь.length <= 1)) { цx = выходXZ.x; цz = выходXZ.z; }
+  const вx = цx - P.x, вz = цz - P.z, q = Math.hypot(вx, вz);
+  P.затаился = (робD < 9 && вУбежище(P.x, P.z));
+  if (q > 0.4 && !P.затаился) {
+    const с = 7.0;
+    const п = столкнуть(P.x + вx/q*с*dt, P.z + вz/q*с*dt, R_ИГРОКА);
+    P.x = п.x; P.z = п.z; P.скор = с;
+    let раз = Math.atan2(вx, вz) - P.тело_yaw;
+    while (раз > Math.PI) раз -= Math.PI*2; while (раз < -Math.PI) раз += Math.PI*2;
+    P.тело_yaw += раз*Math.min(1, dt*12);
+  } else { P.скор *= Math.pow(0.05, dt); if (P.путь && P.путь.length > 1) P.путь.shift(); }
+  if (P.тянет > 0.001) {
+    const dx = робот.x - P.x, dz = робот.z - P.z, qq = Math.max(0.001, Math.hypot(dx, dz));
+    const п = столкнуть(P.x + dx/qq*P.тянет*dt, P.z + dz/qq*P.тянет*dt, R_ИГРОКА);
+    P.x = п.x; P.z = п.z;
+  }
+}
+
 function обновитьРобота(dt) {
-  if (робот.стоп) {                      // только для съёмки и проверок: робот замирает
+  if (робот.стоп) {
     пылесосГр.position.set(робот.x, 0, робот.z); пылесосГр.rotation.y = робот.yaw;
     тень2.position.set(робот.x, 0.02, робот.z);
     щётки.forEach((г, k) => г.rotation.y += dt*(k ? -9 : 9));
-    тянет = 0; воронка.material.opacity = 0; return;
+    игроки.forEach(P => P.тянет = 0); воронка.material.opacity = 0; return;
   }
-  const dx = игрок.x - робот.x, dz = игрок.z - робот.z;
-  const d = Math.hypot(dx, dz);
-  /* видит / помнит / патрулирует */
-  if (видитИгрока(d)) {
-    if (робот.состояние !== 'охота') { Snd.оборвать(2); Snd.тон(880, 0.2, 'square', 0.1, 300);
-      say('🤖 Он тебя заметил!', 1.6); }
-    робот.состояние = 'охота'; робот.память = 4;
-  } else if (робот.память > 0) { робот.память -= dt; }
-  else if (робот.состояние === 'охота') { робот.состояние = 'патруль'; робот.цель = null; }
+  const моты = игроки.filter(P => P !== рульИгрок && P.жив && !P.вышел);
+  /* кто ближе — за тем и гонимся */
+  let жертва = null, dбл = 1e9;
+  моты.forEach(P => { const d = Math.hypot(P.x - робот.x, P.z - робот.z); if (d < dбл) { dбл = d; жертва = P; } });
 
-  робот.думT -= dt;
-  const мояКл = вКлетку(робот.x, робот.z);
-  if (робот.состояние === 'охота') {
-    if (робот.думT <= 0) { робот.цель = вКлетку(игрок.x, игрок.z);
-      робот.путь = путьКл(мояКл, робот.цель); робот.думT = 0.55; }
-  } else {
-    if (!робот.цель || (мояКл.i === робот.цель.i && мояКл.j === робот.цель.j) || робот.думT <= 0) {
-      if (!робот.цель || (мояКл.i === робот.цель.i && мояКл.j === робот.цель.j)) новаяЦельПатруля();
-      робот.путь = путьКл(мояКл, робот.цель); робот.думT = 1.6;
+  if (рульИгрок) { водитьПылесос(рульИгрок, dt); }
+  else if (жертва) {
+    if (видитИгрока(dбл, жертва)) {
+      if (робот.состояние !== 'охота') { Snd.оборвать(2); Snd.тон(880, 0.2, 'square', 0.1, 300);
+        say('🤖 Он тебя заметил!', 1.6); }
+      робот.состояние = 'охота'; робот.память = 4;
+    } else if (робот.память > 0) { робот.память -= dt; }
+    else if (робот.состояние === 'охота') { робот.состояние = 'патруль'; робот.цель = null; }
+
+    робот.думT -= dt;
+    const мояКл = вКлетку(робот.x, робот.z);
+    if (робот.состояние === 'охота') {
+      if (робот.думT <= 0) { робот.цель = вКлетку(жертва.x, жертва.z);
+        робот.путь = путьКл(мояКл, робот.цель); робот.думT = 0.55; }
+    } else {
+      if (!робот.цель || (мояКл.i === робот.цель.i && мояКл.j === робот.цель.j) || робот.думT <= 0) {
+        if (!робот.цель || (мояКл.i === робот.цель.i && мояКл.j === робот.цель.j)) новаяЦельПатруля();
+        робот.путь = путьКл(мояКл, робот.цель); робот.думT = 1.6;
+      }
     }
+    let цx = робот.x, цz = робот.z;
+    const шагКл = робот.путь.length > 1 ? робот.путь[1] : робот.путь[0];
+    if (шагКл) { цx = мирX(шагКл.i); цz = мирZ(шагКл.j); }
+    const вx = цx - робот.x, вz = цz - робот.z, q = Math.hypot(вx, вz);
+    if (q > 0.25) {
+      const с = слож.скор * (робот.состояние === 'охота' ? 1.12 : 0.8);
+      робот.x += вx/q*с*dt; робот.z += вz/q*с*dt;
+      let цY = Math.atan2(вx, вz), раз = цY - робот.yaw;
+      while (раз > Math.PI) раз -= Math.PI*2; while (раз < -Math.PI) раз += Math.PI*2;
+      робот.yaw += раз*Math.min(1, dt*4.5);
+    } else if (робот.путь.length > 1) робот.путь.shift();
   }
-  /* едем по пути */
-  let цx = робот.x, цz = робот.z;
-  const шагКл = робот.путь.length > 1 ? робот.путь[1] : робот.путь[0];
-  if (шагКл) { цx = мирX(шагКл.i); цz = мирZ(шагКл.j); }
-  const вx = цx - робот.x, вz = цz - робот.z, q = Math.hypot(вx, вz);
-  if (q > 0.25) {
-    const с = слож.скор * (робот.состояние === 'охота' ? 1.12 : 0.8);
-    робот.x += вx/q*с*dt; робот.z += вz/q*с*dt;
-    let цY = Math.atan2(вx, вz), раз = цY - робот.yaw;
-    while (раз > Math.PI) раз -= Math.PI*2; while (раз < -Math.PI) раз += Math.PI*2;
-    робот.yaw += раз*Math.min(1, dt*4.5);
-  } else if (робот.путь.length > 1) робот.путь.shift();
+
   пылесосГр.position.set(робот.x, 0, робот.z);
   пылесосГр.rotation.y = робот.yaw;
   тень2.position.set(робот.x, 0.02, робот.z);
@@ -1146,26 +1287,33 @@ function обновитьРобота(dt) {
   глазРобота.material.emissive.setHex(робот.состояние === 'охота' ? 0xff2222 : 0x22ccff);
   фары.forEach(л => л.color.setHex(робот.состояние === 'охота' ? 0xffd0c0 : 0xfff0cc));
 
-  /* 🌪 всасывание */
-  const безопасно = вУбежище(игрок.x, игрок.z) || (слож.круглый && вУглу());
-  const тянетЛи = d < слож.всосR && (робот.состояние === 'охота' || d < 5.5);
-  if (тянетЛи && !безопасно) {
-    const k = clamp(1 - d/слож.всосR, 0, 1);
-    тянет = k*12;
-    воронка.material.opacity = 0.05 + k*0.32;
-    if (d < слож.ловитR) { поймал(); return; }
-  } else { тянет = 0; воронка.material.opacity = безопасно && тянетЛи ? 0.04 : 0; }
-  if (безопасно && тянетЛи && Math.random() < dt*2)
-    say(вУбежище(игрок.x, игрок.z) ? '🛡 В убежище он тебя не достанет' : '📐 В углу круглый бок не проходит', 1.4);
+  /* 🌪 всасывание — считаем для каждой пылинки отдельно */
+  let сильнее = 0;
+  моты.forEach(P => {
+    const d = Math.hypot(P.x - робот.x, P.z - робот.z);
+    const безопасно = вУбежище(P.x, P.z) || (слож.круглый && вУглу(P));
+    const тянетЛи = d < слож.всосR && (робот.состояние === 'охота' || d < 5.5);
+    if (тянетЛи && !безопасно) {
+      const k = clamp(1 - d/слож.всосR, 0, 1);
+      P.тянет = k*12; сильнее = Math.max(сильнее, k);
+      if (d < слож.ловитR) поймал(P);
+    } else {
+      P.тянет = 0;
+      if (безопасно && тянетЛи && Math.random() < dt*2 && P === П1)
+        say(вУбежище(P.x, P.z) ? '🛡 В убежище он тебя не достанет' : '📐 В углу круглый бок не проходит', 1.4);
+    }
+  });
+  воронка.material.opacity = сильнее > 0 ? 0.05 + сильнее*0.32 : 0;
 
-  /* напряжение: гул, сердце, музыка, красные края */
-  опасность = clamp(1 - d/26, 0, 1);
+  /* жужжание рядом, сердце и красные края — по ближайшей пылинке */
+  опасность = clamp(1 - dбл/26, 0, 1);
   Snd.гулСила(опасность);
   $('опасно').style.opacity = (робот.состояние === 'охота' ? 0.35 : 0.12) * опасность +
-    (тянет > 0 ? 0.45 : 0);
+    (сильнее > 0 ? 0.45 : 0);
   $('страхЗал').style.width = Math.round(опасность*100) + '%';
-  $('страхИмя').textContent = тянет > 0 ? '🌪 ЗАСАСЫВАЕТ!'
-    : (робот.состояние === 'охота' ? '🤖 ОН ГОНИТСЯ ЗА ТОБОЙ' : '🤖 ПЫЛЕСОС УБИРАЕТСЯ');
+  $('страхИмя').textContent = рульИгрок ? '🤖 ТЫ — ПЫЛЕСОС. Лови пылинку!'
+    : (сильнее > 0 ? '🌪 ЗАСАСЫВАЕТ!'
+    : (робот.состояние === 'охота' ? '🤖 ОН ГОНИТСЯ ЗА ТОБОЙ' : '🤖 ПЫЛЕСОС УБИРАЕТСЯ'));
   сердцеT -= dt;
   if (сердцеT <= 0 && опасность > 0.35) { Snd.сердце(опасность); сердцеT = 1.15 - опасность*0.75; }
 }
@@ -1200,51 +1348,98 @@ const скрХолст = document.createElement('canvas');
     g.beginPath(); g.moveTo(x, 355); g.lineTo(x + 26, 355); g.lineTo(x + 13, 312); g.closePath(); g.fill();
   }
 })();
-function поймал() {
-  if (состояние !== 'игра') return;
-  состояние = 'скример'; скримерT = 1.1; тряска = 2.6; тянет = 0;
-  Snd.скример(); Snd.стопМузыки(); Snd.гулВкл(false);
-  вспышка(0.85, '#ff2222');
+function поймал(P) {
+  if (состояние !== 'игра' || !P || !P.жив) return;
+  P.жив = false; P.тянет = 0; тряска = 2.6;
+  Snd.стопМузыки(); Snd.гулВкл(false);
+  if (P.бот) {                       // ты играешь ЗА ПЫЛЕСОС и только что поймал
+    вспышка(0.6, '#ffd24a'); Snd.победа();
+    состояние = 'конец'; setTimeout(() => финал('пылесос'), 700);
+    return;
+  }
+  состояние = 'скример'; скримерT = 1.1; скримерКого = P;
+  Snd.скример(); вспышка(0.85, '#ff2222');
   скрЭл.style.display = 'flex';
   скрХолст.style.transform = 'scale(.25)';
   requestAnimationFrame(() => { скрХолст.style.transform = 'scale(1.35)'; });
-  setTimeout(() => { скрЭл.style.display = 'none'; финал(false); }, 1450);
+  setTimeout(() => { скрЭл.style.display = 'none'; финал('пылесос'); }, 1450);
 }
 
 /* ═══════════ 🎮 ИГРА: старт, финал, экраны ═══════════ */
 function старт() {
-  состояние = 'игра'; таймер = 0; собрано = 0; тянет = 0; затаился = false;
-  рывокT = 0; рывокОст = 0; тряска = 0; скримерT = 0; зумК = 1; видКам = 1;
+  состояние = 'игра'; таймер = 0; собрано = 0; тряска = 0; скримерT = 0; скримерКого = null;
+  вдвоём = (заКого === 'вдвоём');
+  игроки = (заКого === 'пылинка') ? [П1] : [П1, П2];
+  П1.клав = вдвоём ? { вперёд:['KeyW'], назад:['KeyS'], влево:['KeyA'], вправо:['KeyD'] }
+                   : { вперёд:['KeyW','ArrowUp'], назад:['KeyS','ArrowDown'],
+                       влево:['KeyA','ArrowLeft'], вправо:['KeyD','ArrowRight'] };
+  if (П2) П2.клав = { вперёд:['ArrowUp'], назад:['ArrowDown'], влево:['ArrowLeft'], вправо:['ArrowRight'] };
+  игроки.forEach(P => { P.жив = true; P.вышел = false; P.тянет = 0; P.затаился = false;
+    P.рывокT = 0; P.рывокОст = 0; P.зум = 1; P.видКам = 1; P.бот = false;
+    P.стик = { x:0, y:0 }; P.путь = []; P.думT = 0; });
+  рульИгрок = вдвоём ? П2 : (заКого === 'пылесос' ? П1 : null);
+  /* за пылесос в одиночку — пылинкой правит сама игра */
+  if (заКого === 'пылесос') П2.бот = true;
+  document.body.classList.toggle('вдвоём', вдвоём);
   document.body.classList.add('play');
   ['menu','выбор','рекЭкран','over'].forEach(id => $(id).classList.add('hidden'));
   Snd.вкл(); Snd.гулВкл(true); Snd.музыка(слож.id !== 'легко');
   try { const de = document.documentElement;
     if (слабоеЖелезо && de.requestFullscreen) de.requestFullscreen().catch(()=>{}); } catch (_) {}
   собратьУровень();
-  игрок.x = мирX(стартКл.i); игрок.z = мирZ(стартКл.j);
-  yaw = Math.atan2(мирX(1) - игрок.x, мирZ(1) - игрок.z); тело_yaw = yaw;
+  игроки.forEach((P, k) => {
+    P.x = мирX(стартКл.i) + (k ? 1.4 : -1.4)*(вдвоём ? 1 : 0);
+    P.z = мирZ(стартКл.j);
+    P.yaw = Math.atan2(мирX(1) - P.x, мирZ(1) - P.z); P.тело_yaw = P.yaw; P.pitch = 0.18;
+  });
   робот.x = мирX(Math.floor(N/2)); робот.z = мирZ(Math.floor(N/2));
-  робот.состояние = 'патруль'; робот.память = 0; робот.путь = []; робот.цель = null; робот.думT = 0;
+  робот.состояние = рульИгрок ? 'охота' : 'патруль';
+  робот.память = 0; робот.путь = []; робот.цель = null; робот.думT = 0; робот.стоп = false;
+  if (рульИгрок) { рульИгрок.x = робот.x; рульИгрок.z = робот.z; рульИгрок.тело_yaw = робот.yaw; }
+  игрок = вдвоём ? П1 : (заКого === 'пылесос' ? П1 : П1);
+  $('ктоВерх').textContent = '🌫 ПЫЛИНКА';
+  $('ктоНиз').textContent  = '🤖 ПЫЛЕСОС';
   $('место').textContent = место.имя + ' · ' + слож.имя;
   $('куски').style.display = режим === 'кусочки' ? 'block' : 'none';
   $('задача').textContent = режим === 'кусочки'
     ? '📌 Собери кусочки ключа и беги к решётке'
     : '📌 Найди выход как можно быстрее';
   обновитьРекордНадпись();
-  bigMsg('🌫 БЕГИ!', 1.6, '#ffd98a');
-  say(slozhТекст(), 6);
-  камера(0, true);
+  bigMsg(рульИгрок === П1 ? '🤖 ЛОВИ ЕЁ!' : '🌫 БЕГИ!', 1.6, '#ffd98a');
+  say(заКого === 'пылесос' ? '🤖 Ты — пылесос ' + (слож.круглый ? 'ВИХРЬ R-9' : 'ВИХРЬ Q-7') +
+      '. Поймай пылинку, пока она не нашла выход.'
+    : (вдвоём ? '👥 Сверху — пылинка, снизу — пылесос. Пылинка бежит к выходу, пылесос ловит.'
+              : slozhТекст()), 6);
+  камера(П1, camera, 0, true);
+  if (П2 && вдвоём) камера(П2, camera2, 0, true);
 }
 const slozhТекст = () => слож.текст;
 function обновитьРекордНадпись() {
   const р = сохр.рекорды[ключРек()];
   $('рекорд').textContent = р === undefined ? '🏆 рекорда пока нет' : '🏆 рекорд ' + времяТекст(р);
 }
-function финал(победа) {
+function финал(ктоПобедил) {
   if (состояние === 'меню') return;
+  const яПылесос = (заКого === 'пылесос');
+  const победа = вдвоём ? true : (яПылесос ? ктоПобедил === 'пылесос' : ктоПобедил === 'пылинка');
   состояние = 'конец'; document.body.classList.remove('play');
   Snd.гулВкл(false); Snd.стопМузыки();
   let текст = '';
+  if (вдвоём) {
+    Snd.победа();
+    $('overT').textContent = ктоПобедил === 'пылинка' ? '🌫 ПЫЛИНКА УДРАЛА!' : '🤖 ПЫЛЕСОС ПОЙМАЛ!';
+    текст = ктоПобедил === 'пылинка'
+      ? 'Пылинка нашла выход за <b>' + времяТекст(таймер) + '</b>. Побеждает верхний экран!'
+      : 'Пылесос догнал пылинку за <b>' + времяТекст(таймер) + '</b>. Побеждает нижний экран!';
+    $('overD').innerHTML = текст; $('over').classList.remove('hidden'); return;
+  }
+  if (яПылесос) {
+    if (победа) { Snd.победа(); $('overT').textContent = '🤖 ПОЙМАЛ!';
+      текст = 'Пылинка не ушла. Ты справился за <b>' + времяТекст(таймер) + '</b>.'; }
+    else { $('overT').textContent = '🌫 УДРАЛА';
+      текст = 'Пылинка нашла выход за <b>' + времяТекст(таймер) + '</b>. В следующий раз отрезай ей путь.'; }
+    $('overD').innerHTML = текст; $('over').classList.remove('hidden'); return;
+  }
   if (победа) {
     Snd.победа();
     const новый = записатьРекорд(таймер);
@@ -1289,12 +1484,26 @@ function показатьВыбор() {
     к.appendChild(d);
   });
 }
+function рисоватьРоли() {
+  const р = $('заКогоРяд'); if (!р) return;
+  р.innerHTML = '';
+  РОЛИ.forEach(роль => {
+    const b = document.createElement('button');
+    b.className = 'btn ghost'; b.textContent = роль.имя;
+    b.title = роль.d;
+    if (роль.id === заКого) { b.style.borderColor = '#ffd98a'; b.style.color = '#ffd98a'; }
+    b.onclick = () => { заКого = роль.id; рисоватьРоли(); say(роль.имя + ' — ' + роль.d, 3); };
+    р.appendChild(b);
+  });
+}
+рисоватьРоли();
 $('р1').onclick = () => { режим = 'время'; показатьВыбор(); };
 $('р2').onclick = () => { режим = 'кусочки'; показатьВыбор(); };
 $('назадБтн').onclick = () => { $('выбор').classList.add('hidden'); $('menu').classList.remove('hidden'); };
 $('ещёБтн').onclick = () => старт();
 $('менюБтн').onclick = () => { состояние = 'меню'; $('over').classList.add('hidden');
-  $('menu').classList.remove('hidden'); Snd.гулВкл(false); Snd.стопМузыки(); };
+  $('menu').classList.remove('hidden'); document.body.classList.remove('вдвоём');
+  рисоватьРоли(); Snd.гулВкл(false); Snd.стопМузыки(); };
 $('рекБтн').onclick = () => {
   $('menu').classList.add('hidden'); $('рекЭкран').classList.remove('hidden');
   let h = '<table class="рек">';
@@ -1313,24 +1522,31 @@ $('рекЗакр').onclick = () => { $('рекЭкран').classList.add('hidde
 
 /* ═══════════ проверки по ходу игры ═══════════ */
 function проверитьСобытия(dt) {
-  /* кусочки */
+  const моты = игроки.filter(P => P !== рульИгрок);
   кусочки.forEach(к => {
     if (к.взят) return;
     к.г.rotation.y += dt*1.8; к.г.position.y = 0.9 + Math.sin(время*2.4 + к.x)*0.18;
-    if (Math.hypot(к.x - игрок.x, к.z - игрок.z) < 1.6) {
-      к.взят = true; к.г.visible = false; собрано++;
-      Snd.взял(); bigMsg('🔑 ' + собрано + ' / ' + надоКусочков, 1.2, '#ffd24a');
-      if (собрано >= надоКусочков) { открытьВыход(true);
-        say('🔓 Решётка открылась! Беги к выходу.', 4); Snd.победа(); }
+    for (const P of моты) {
+      if (!P.жив || P.вышел) continue;
+      if (Math.hypot(к.x - P.x, к.z - P.z) < 1.6) {
+        к.взят = true; к.г.visible = false; собрано++;
+        Snd.взял(); bigMsg('🔑 ' + собрано + ' / ' + надоКусочков, 1.2, '#ffd24a');
+        if (собрано >= надоКусочков) { открытьВыход(true);
+          say('🔓 Решётка открылась! Беги к выходу.', 4); Snd.взял(); }
+        break;
+      }
     }
   });
   $('куски').textContent = '🔑 ' + собрано + ' / ' + надоКусочков;
-  /* выход */
-  const dВых = Math.hypot(выходXZ.x - игрок.x, выходXZ.z - игрок.z);
-  if (dВых < 2.4) {
-    if (выходОткрыт) финал(true);
-    else if (Math.random() < dt*3) say('🔒 Решётка заперта. Сначала собери все кусочки.', 1.6);
+  for (const P of моты) {
+    if (!P.жив || P.вышел) continue;
+    const dВых = Math.hypot(выходXZ.x - P.x, выходXZ.z - P.z);
+    if (dВых < 2.4) {
+      if (выходОткрыт) { P.вышел = true; финал('пылинка'); return; }
+      else if (Math.random() < dt*3 && !P.бот) say('🔒 Решётка заперта. Сначала собери все кусочки.', 1.6);
+    }
   }
+  if (моты.length && моты.every(P => !P.жив)) финал('пылесос');
   гВыход.userData.свет.material.opacity = (выходОткрыт ? 0.5 : 0.14) + Math.sin(время*3)*0.06;
 }
 
@@ -1341,13 +1557,27 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last)/1000); last = now; время += dt;
   if (состояние === 'игра') {
     таймер += dt;
-    двигатьИгрока(dt); рисоватьИгрока(dt); обновитьРобота(dt); проверитьСобытия(dt);
-    обновитьПыль(dt); камера(dt, false);
+    игроки.forEach(P => { if (P === рульИгрок) return;
+      if (P.бот) ботПылинки(P, dt); else двигатьИгрока(P, dt); });
+    обновитьРобота(dt);
+    игроки.forEach(P => {
+      if (P === рульИгрок) { P.вид.гр.visible = false; P.вид.тень.visible = false;
+        P.вид.метка.visible = false; return; }
+      рисоватьИгрока(P, dt);
+    });
+    проверитьСобытия(dt);
+    обновитьПыль(dt);
+    камера(П1, camera, dt, false);
+    if (вдвоём) камера(П2, camera2, dt, false);
     $('часы').textContent = времяТекст(таймер);
-    $('рывокБтн').classList.toggle('пусто', рывокОст > 0);
-    $('затаБтн').classList.toggle('жмут', затаился);
+    $('рывокБтн').classList.toggle('пусто', П1.рывокОст > 0);
+    $('затаБтн').classList.toggle('жмут', П1.затаился);
+    if (вдвоём) { $('рывокБтн2').classList.toggle('пусто', П2.рывокОст > 0);
+      $('затаБтн2').classList.toggle('жмут', П2.затаился); }
   } else if (состояние === 'скример') {
-    скримерT -= dt; камера(dt, false); обновитьПыль(dt);
+    скримерT -= dt; камера(П1, camera, dt, false);
+    if (вдвоём) камера(П2, camera2, dt, false);
+    обновитьПыль(dt);
   } else {
     const a = время*0.13;
     camera.position.set(Math.sin(a)*16, 9 + Math.sin(время*0.3)*1.2, Math.cos(a)*16);
@@ -1357,11 +1587,14 @@ function loop(now) {
   if (тряска > 0) тряска = Math.max(0, тряска - dt*2.2);
   if (msgT > 0) { msgT -= dt; if (msgT <= 0) $('bigMsg').style.opacity = 0; }
   if (sayT > 0) { sayT -= dt; if (sayT <= 0) $('say').style.display = 'none'; }
-  renderer.render(scene, camera);
+  рисоватьКадр();
 }
+/* пульты: свой у каждого игрока */
+привязатьРучки(П1, 'stick',  'knob',  'затаБтн',  'рывокБтн');
+привязатьРучки(П2, 'stick2', 'knob2', 'затаБтн2', 'рывокБтн2');
 /* чтобы в меню было на что смотреть, собираем лабиринт заранее */
 собратьУровень();
-камера(0, true);
+камера(П1, camera, 0, true);
 requestAnimationFrame(loop);
 
 /* ═══════════ отладка для автотестов ═══════════ */
@@ -1371,48 +1604,56 @@ window.__dbg = {
   get diff() { return слож.id; },
   get place() { return место.id; },
   get time() { return +таймер.toFixed(1); },
-  get pos() { return { x:+игрок.x.toFixed(1), z:+игрок.z.toFixed(1) }; },
-  get cell() { return вКлетку(игрок.x, игрок.z); },
+  get pos() { return { x:+П1.x.toFixed(1), z:+П1.z.toFixed(1) }; },
+  get pos2() { return { x:+П2.x.toFixed(1), z:+П2.z.toFixed(1) }; },
+  get role() { return заКого; },
+  get coop() { return вдвоём; },
+  get alive() { return игроки.map(P => ({ имя:P.имя, жив:P.жив, вышел:P.вышел, бот:!!P.бот,
+    руль:P === рульИгрок })); },
+  get cell() { return вКлетку(П1.x, П1.z); },
   get robot() { return { x:+робот.x.toFixed(1), z:+робот.z.toFixed(1), сост:робот.состояние,
-    d:+Math.hypot(робот.x-игрок.x, робот.z-игрок.z).toFixed(1) }; },
-  get pull() { return +тянет.toFixed(2); },
+    d:+Math.hypot(робот.x-П1.x, робот.z-П1.z).toFixed(1) }; },
+  get pull() { return +П1.тянет.toFixed(2); },
   get danger() { return +опасность.toFixed(2); },
   get pieces() { return { собрано, надо:надоКусочков }; },
   get exitOpen() { return выходОткрыт; },
-  get corner() { return вУглу(); },
-  get shelter() { return вУбежище(игрок.x, игрок.z); },
-  get hidden() { return затаился; },
+  get corner() { return вУглу(П1); },
+  get shelter() { return вУбежище(П1.x, П1.z); },
+  get hidden() { return П1.затаился; },
   get records() { return Object.assign({}, сохр.рекорды); },
   get maze() { return { N, стен:стеныКороба.length, щелей:щели.length, убежищ:убежища.length,
     кусочков:кусочки.length }; },
-  start(м, с, п) {
+  start(м, с, п, роль) {
     режим = м || 'время';
     if (с) слож = СЛОЖНОСТИ.find(x => x.id === с) || слож;
     if (п) место = МЕСТА.find(x => x.id === п) || место;
+    if (роль) заКого = роль;
     старт(); return состояние;
   },
-  tp(x, z) { игрок.x = x; игрок.z = z; return this.pos; },
-  toCell(i, j) { игрок.x = мирX(i); игрок.z = мирZ(j); return this.pos; },
-  toExit() { игрок.x = выходXZ.x; игрок.z = выходXZ.z - 1.2; return this.pos; },
+  setRole(r) { заКого = r; рисоватьРоли(); return заКого; },
+  tp(x, z) { П1.x = x; П1.z = z; return this.pos; },
+  tp2(x, z) { П2.x = x; П2.z = z; return this.pos2; },
+  toCell(i, j) { П1.x = мирX(i); П1.z = мирZ(j); return this.pos; },
+  toExit() { П1.x = выходXZ.x; П1.z = выходXZ.z - 1.2; return this.pos; },
   toPiece(k) { const с = кусочки.filter(x => !x.взят)[k || 0]; if (!с) return null;
-    игрок.x = с.x; игрок.z = с.z; return с.x; },
+    П1.x = с.x; П1.z = с.z; return с.x; },
   toGap(k) { const щ = щели[k || 0]; if (!щ) return null;
     const x = щ.бок === 'с' ? мирX(щ.i) : мирX(щ.i) - Ш/2;
     const z = щ.бок === 'с' ? мирZ(щ.j) - Ш/2 : мирZ(щ.j);
-    игрок.x = x + (щ.бок === 'с' ? 0 : 2.6); игрок.z = z + (щ.бок === 'с' ? 2.6 : 0);
-    yaw = Math.atan2(x - игрок.x, z - игрок.z); тело_yaw = yaw;
+    П1.x = x + (щ.бок === 'с' ? 0 : 2.6); П1.z = z + (щ.бок === 'с' ? 2.6 : 0);
+    П1.yaw = Math.atan2(x - П1.x, z - П1.z); П1.тело_yaw = П1.yaw;
     return { x, z, бок:щ.бок }; },
-  look(x, z) { yaw = Math.atan2(x - игрок.x, z - игрок.z); тело_yaw = yaw; return +yaw.toFixed(2); },
-  setView(i) { видКам = clamp(i, 0, ВИДЫ.length-1); зумК = 1; return ВИДЫ[видКам].имя; },
+  look(x, z) { П1.yaw = Math.atan2(x - П1.x, z - П1.z); П1.тело_yaw = П1.yaw; return +П1.yaw.toFixed(2); },
+  setView(i) { П1.видКам = clamp(i, 0, ВИДЫ.length-1); П1.зум = 1; return ВИДЫ[П1.видКам].имя; },
   toShelter(k) { const у = убежища[k || 0]; if (!у) return null;
-    игрок.x = у.x; игрок.z = у.z; return { i:у.i, j:у.j }; },
+    П1.x = у.x; П1.z = у.z; return { i:у.i, j:у.j }; },
   toCorner() {                       // встать ровно в угол клетки со стенами
     for (let j = 1; j < N-1; j++) for (let i = 1; i < N-1; i++) {
       const c = кл(i, j);
       const пары = [[c.в, c.с, 1, -1], [c.в, c.ю, 1, 1], [c.з, c.с, -1, -1], [c.з, c.ю, -1, 1]];
       for (const [a, b, sx, sz] of пары) if (a && b) {
-        игрок.x = мирX(i) + sx*(Ш/2 - 1.1); игрок.z = мирZ(j) + sz*(Ш/2 - 1.1);
-        return { i, j, угол:вУглу() };
+        П1.x = мирX(i) + sx*(Ш/2 - 1.1); П1.z = мирZ(j) + sz*(Ш/2 - 1.1);
+        return { i, j, угол:вУглу(П1) };
       }
     }
     return null;
@@ -1423,8 +1664,8 @@ window.__dbg = {
   robotYaw(a) { робот.yaw = a; return a; },
   robotCalm() { робот.состояние = 'патруль'; робот.память = 0; робот.цель = null; робот.путь = [];
     return робот.состояние; },
-  hide(v) { затаился = !!v; return затаился; },
-  dash() { рывокЖми(); return рывокT; },
+  hide(v) { П1.затаился = !!v; return П1.затаился; },
+  dash() { рывокЖми(П1); return П1.рывокT; },
   key(k, v) { keys[k] = !!v; return !!keys[k]; },
   takeAll() { кусочки.forEach(к => { if (!к.взят) { к.взят = true; к.г.visible = false; собрано++; } });
     if (собрано >= надоКусочков) открытьВыход(true); return { собрано, открыт:выходОткрыт }; },
