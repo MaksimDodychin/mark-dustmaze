@@ -120,7 +120,7 @@
   <link rel="apple-touch-icon-precomposed" sizes="180x180" href="apple-touch-icon.png">
   <meta name="msapplication-TileImage" content="icon-192.png">
   <meta name="msapplication-TileColor" content="#8a5a18">
-  <script>window.__APP_VER = "d5b78c86a7";</script>
+  <script>window.__APP_VER = "1b7607dd55";</script>
 </head>
 <body>
 <div id="err"></div>
@@ -330,6 +330,86 @@ const texПятно = холст(128, (g, S) => {
    🌀 ЛАБИРИНТ. Клетки и стены считаем честно, чтобы пылесос
    ходил по тем же коридорам, что и ты, а не сквозь пыль.
    ═══════════════════════════════════════════════════════════ */
+/* Астра: только графика. Коллизии, пути, эффекты и имена исходной игры сохранены. */
+const daArt={textures:new Map(),geometry:new Map()};
+function daVisual(fn){const original=Math.random;let seed=0x62351ac;Math.random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);try{return fn();}finally{Math.random=original;}}
+function daTexture(kind){if(daArt.textures.has(kind))return daArt.textures.get(kind);const canvas=document.createElement('canvas');canvas.width=canvas.height=512;const g=canvas.getContext('2d');
+  g.fillStyle=kind==='wood'?'#967654':'#c8c6bc';g.fillRect(0,0,512,512);
+  if(kind==='wood'){
+    for(let row=0;row<4;row++){const y=row*128;g.fillStyle=row%2?'#9b7956':'#a08260';g.fillRect(0,y,512,128);for(let k=0;k<75;k++){const yy=y+Math.random()*128;g.strokeStyle=k%3?'rgba(49,32,20,.10)':'rgba(234,202,158,.12)';g.lineWidth=.5+Math.random();g.beginPath();for(let x=0;x<=512;x+=8)g.lineTo(x,yy+Math.sin(x*.025+k)*1.1+Math.sin(x*.06)*.6);g.stroke();}g.fillStyle='#3c2a1c66';g.fillRect(0,y,512,2);g.fillStyle='#ebcba333';g.fillRect(0,y+3,512,1);const joint=(row%2)*256+128;g.fillStyle='#53351c55';g.fillRect(joint,y,2,128);}
+  }else{
+    for(let n=0;n<950;n++){const x=Math.random()*512,y=Math.random()*512,r=4+Math.random()*29;const a=g.createRadialGradient(x,y,0,x,y,r);a.addColorStop(0,n%2?'rgba(229,222,211,.08)':'rgba(59,51,41,.05)');a.addColorStop(1,'rgba(160,151,137,0)');g.fillStyle=a;g.fillRect(x-r,y-r,r*2,r*2);}
+    for(let n=0;n<3300;n++){const x=Math.random()*512,y=Math.random()*512,l=3+Math.random()*19;g.strokeStyle=n%3?'rgba(235,228,214,.14)':'rgba(69,61,49,.15)';g.lineWidth=.45+Math.random()*.45;g.beginPath();g.moveTo(x,y);g.bezierCurveTo(x+l*.3,y-3,x+l*.7,y+4,x+l,y+Math.random()*6-3);g.stroke();}
+  }
+  for(let n=0;n<6500;n++){g.fillStyle=n%2?'rgba(249,231,199,.035)':'rgba(20,17,13,.045)';g.fillRect(Math.random()*512,Math.random()*512,1,1);}
+  const t=new THREE.CanvasTexture(canvas);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());daArt.textures.set(kind,t);return t;
+}
+function daMesh(parent,geometry,material,x=0,y=0,z=0){const m=new THREE.Mesh(geometry,material);m.position.set(x,y,z);m.raycast=()=>{};m.userData.daDetail=true;m.receiveShadow=true;parent.add(m);return m;}
+function daTube(parent,points,r,material,segments=24){const c=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));return daMesh(parent,new THREE.TubeGeometry(c,segments,r,8,false),material);}
+function daCombine(parts){const ps=[],ns=[],uvs=[];for(const source of parts){const g=source.index?source.toNonIndexed():source;ps.push(...g.attributes.position.array);ns.push(...g.attributes.normal.array);if(g.attributes.uv)uvs.push(...g.attributes.uv.array);else uvs.push(...new Float32Array(g.attributes.position.count*2));if(g!==source)g.dispose();source.dispose();}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(ps,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(ns,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));return g;}
+function daDust(gr,body,bodyMat,fibers,fiberMat){
+  body.geometry.dispose();const geo=new THREE.SphereGeometry(.45,28,20);const pos=geo.attributes.position;
+  for(let i=0;i<pos.count;i++){const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i),k=1+.055*Math.sin(x*14+y*6)*Math.cos(z*13)+.035*Math.sin(y*18-z*9);pos.setXYZ(i,x*k,y*k*.91,z*k);}geo.computeVertexNormals();body.geometry=geo;
+  bodyMat.color.setHex(0xf0f0e7);bodyMat.emissive.setHex(0x98a6ad);bodyMat.emissiveIntensity=.24;bodyMat.map=daTexture('fiber');bodyMat.bumpMap=bodyMat.map;bodyMat.bumpScale=.018;bodyMat.roughness=1;
+  fiberMat.color.setHex(0xe3e2d9);fiberMat.emissive.setHex(0xa5b0b4);fiberMat.emissiveIntensity=.23;fiberMat.depthWrite=false;fiberMat.side=THREE.DoubleSide;fiberMat.forceSinglePass=true;fiberMat.alphaTest=.018;
+  let fuzz=daArt.textures.get('fuzz');if(!fuzz){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.fillStyle='#000';g.fillRect(0,0,256,256);const a=g.createRadialGradient(128,128,4,128,128,110);a.addColorStop(0,'#bababa');a.addColorStop(.40,'#929292');a.addColorStop(.72,'#292929');a.addColorStop(1,'#000');g.fillStyle=a;g.fillRect(0,0,256,256);for(let i=0;i<520;i++){const angle=Math.random()*Math.PI*2,r=30+Math.random()*75,x=128+Math.cos(angle)*r,y=128+Math.sin(angle)*r;g.strokeStyle='rgba(220,220,220,'+(.13+Math.random()*.4)+')';g.lineWidth=.45+Math.random()*.65;g.beginPath();g.moveTo(x,y);g.bezierCurveTo(x+Math.cos(angle)*12-4,y+Math.sin(angle)*12+4,x+Math.cos(angle)*16+4,y+Math.sin(angle)*16-3,x+Math.cos(angle)*23,y+Math.sin(angle)*23);g.stroke();}fuzz=new THREE.CanvasTexture(c);daArt.textures.set('fuzz',fuzz);}fiberMat.alphaMap=fuzz;fiberMat.needsUpdate=true;
+  const puffParts=[];
+  for(let i=0;i<34;i++){const a=i*2.3999,b=Math.acos(1-2*(i+.5)/34),normal=new THREE.Vector3(Math.sin(b)*Math.cos(a),Math.cos(b),Math.sin(b)*Math.sin(a));const geo=new THREE.PlaneGeometry(.58,.58);geo.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(normal.x*.40,normal.y*.37,normal.z*.40),new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1),normal),new THREE.Vector3(1,1,1)));puffParts.push(geo);}daMesh(body,daCombine(puffParts),fiberMat);
+  fibers.forEach((fiber,i)=>{fiber.geometry.dispose();const bend=(i%2?1:-1)*(.04+Math.random()*.03),length=.12+Math.random()*.1;
+    const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,-.065,0),new THREE.Vector3(bend*.25,-.005,.02),new THREE.Vector3(bend,length*.4,.018),new THREE.Vector3(bend*.9,length*.72,-.01),new THREE.Vector3(bend*.35,length*.82,-.024)]);
+    fiber.geometry=new THREE.TubeGeometry(curve,9,.0045+Math.random()*.0015,4,false);fiber.castShadow=false;
+  });
+}
+function daWall(mesh){
+  const p=mesh.geometry.parameters,bottom=mesh.position.y-p.height/2,oldTop=mesh.position.y+p.height/2,top=oldTop>3.39?5.2:oldTop;
+  mesh.geometry.dispose();mesh.geometry=new THREE.BoxGeometry(p.width,top-bottom,p.depth);mesh.position.y=(top+bottom)/2;
+  const pos=mesh.geometry.attributes.position,normal=mesh.geometry.attributes.normal,uv=mesh.geometry.attributes.uv;
+  for(let i=0;i<uv.count;i++){const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i),nx=Math.abs(normal.getX(i)),ny=Math.abs(normal.getY(i));uv.setXY(i,(nx>.5?z:x)*.34,(ny>.5?z:y+mesh.position.y)*.34);}uv.needsUpdate=true;
+  mesh.userData.daHeight=top-bottom;
+  mesh.updateMatrixWorld(true);
+}
+function daCameraClamp(from,to){const direction=to.clone().sub(from),length=direction.length();if(length<.001)return;direction.multiplyScalar(1/length);лучКам.set(from,direction);лучКам.far=length;const hit=лучКам.intersectObjects(гЛаб.children,false)[0];if(hit&&hit.distance<length)to.copy(from).addScaledVector(direction,Math.max(.06,hit.distance-.34));}
+function daRobot(){
+  const metal=new THREE.MeshStandardMaterial({color:0xb6c3ce,roughness:.29,metalness:.78});
+  const rubber=new THREE.MeshStandardMaterial({color:0x1c252d,roughness:.84,metalness:.04});
+  const dark=new THREE.MeshStandardMaterial({color:0x0b141c,roughness:.33,metalness:.28});
+  const shell=new THREE.MeshStandardMaterial({color:0x657f94,roughness:.32,metalness:.42});
+  корпусП.material.color.setHex(0x536a7e);корпусП.material.roughness=.32;крышкаП.material.color.setHex(0x8198a8);крышкаП.material.roughness=.28;
+  квадратныеЧасти.slice(0,3).forEach((m,i)=>{m.material.color.setHex([0x765a4f,0x231e1b,0xab8370][i]);m.material.roughness=i===1?.7:.32;});
+  корпусП.geometry.dispose();корпусП.geometry=new THREE.CylinderGeometry(2.3,2.15,1.25,72);крышкаП.geometry.dispose();крышкаП.geometry=new THREE.CylinderGeometry(1.5,1.9,.34,64);
+  корпусП.material.metalness=.18;крышкаП.material.metalness=.24;
+  const rim=new THREE.Mesh(new THREE.TorusGeometry(2.255,.035,7,72),metal);rim.rotation.x=Math.PI/2;rim.position.y=1.31;пылесосГр.add(rim);круглыеЧасти.push(rim);
+  const lidRim=new THREE.Mesh(new THREE.TorusGeometry(1.52,.024,6,64),metal);lidRim.rotation.x=Math.PI/2;lidRim.position.y=1.615;пылесосГр.add(lidRim);круглыеЧасти.push(lidRim);
+  const bristleMat=new THREE.MeshStandardMaterial({color:0x606871,roughness:.9,metalness:.04});
+  for(const brush of щётки){brush.children[0].material=metal;for(const spoke of brush.children.slice(1)){const parts=[];for(let n=0;n<9;n++){const z=(n-4)*.021;const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(-.69,0,z*.2),new THREE.Vector3(-.15,-.035,z),new THREE.Vector3(.38,-.10,z*1.6),new THREE.Vector3(.72,-.15,z*1.8+.025)]);parts.push(new THREE.TubeGeometry(curve,10,.008,4,false));}spoke.geometry.dispose();spoke.geometry=daCombine(parts);spoke.material=bristleMat;}}
+  // The entire hose runs inside the original body/nozzle envelope.
+  const hoseCurve=new THREE.CatmullRomCurve3([new THREE.Vector3(1.0,1.56,-.7),new THREE.Vector3(1.42,2.22,-.3),new THREE.Vector3(1.25,2.5,.65),new THREE.Vector3(.62,1.91,1.46),new THREE.Vector3(.15,.75,2.05)]);
+  daMesh(пылесосГр,new THREE.TubeGeometry(hoseCurve,48,.145,10,false),rubber);
+  const ribPositions=[],ribNormals=[];
+  for(let i=0;i<=30;i++){const t=i/30,ring=new THREE.TorusGeometry(.15,.022,5,10).toNonIndexed();const matrix=new THREE.Matrix4().compose(hoseCurve.getPoint(t),new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1),hoseCurve.getTangent(t)),new THREE.Vector3(1,1,1));ring.applyMatrix4(matrix);ribPositions.push(...ring.attributes.position.array);ribNormals.push(...ring.attributes.normal.array);ring.dispose();}
+  const ribs=new THREE.BufferGeometry();ribs.setAttribute('position',new THREE.Float32BufferAttribute(ribPositions,3));ribs.setAttribute('normal',new THREE.Float32BufferAttribute(ribNormals,3));daMesh(пылесосГр,ribs,metal);
+  // A practical grip, hose collars and wide floor head connect to the old suction mouth.
+  daTube(пылесосГр,[[-.76,1.65,-1.1],[-.76,2.07,-1.1],[.24,2.07,-1.1],[.24,1.65,-1.1]],.075,rubber);
+  for(const [x,y,z]of [[1,1.58,-.7],[.15,.78,2.05]]){const collar=daMesh(пылесосГр,new THREE.CylinderGeometry(.20,.20,.18,18),metal,x,y,z);collar.rotation.x=.3;}
+  const head=daMesh(пасть,скруглГео(2.82,.69,.22,.16),shell,0,.18,0);head.castShadow=true;
+  daMesh(пасть,new THREE.BoxGeometry(2.54,.08,.06),rubber,0,-.26,.27);
+  for(let i=0;i<15;i++)daMesh(пасть,new THREE.BoxGeometry(.075,.35,.025),metal,-1.13+i*.162,0,.267);
+  for(const sx of [-1,1]){
+    const hub=daMesh(пылесосГр,new THREE.CylinderGeometry(.32,.32,.04,24),metal,sx*2.28,.42,-.2);hub.rotation.z=Math.PI/2;
+    const tire=daMesh(пылесосГр,new THREE.TorusGeometry(.40,.075,8,24),rubber,sx*2.29,.42,-.2);tire.rotation.y=Math.PI/2;
+    for(let n=0;n<5;n++){const a=n*Math.PI*2/5;const bolt=daMesh(пылесосГр,new THREE.SphereGeometry(.035,5,4),dark,sx*2.31,.42+Math.sin(a)*.2,-.2+Math.cos(a)*.2);}
+  }
+  // Shape-specific plate remains controlled by the authored round/square switch.
+  for(const [square,list]of [[false,круглыеЧасти],[true,квадратныеЧасти]]){
+    const group=new THREE.Group();пылесосГр.add(group);list.push(group);
+    const c=document.createElement('canvas');c.width=512;c.height=128;const g=c.getContext('2d');g.fillStyle='#15202a';g.fillRect(0,0,512,128);g.strokeStyle='#b7c5d0';g.lineWidth=4;g.strokeRect(3,3,506,122);g.fillStyle='#e8eff3';g.textAlign='center';g.font='700 54px system-ui';g.fillText(square?'ВИХРЬ Q-7':'ВИХРЬ R-9',256,80);const map=new THREE.CanvasTexture(c);map.colorSpace=THREE.SRGBColorSpace;
+    const plaque=daMesh(group,new THREE.PlaneGeometry(1.62,.405),new THREE.MeshStandardMaterial({map,roughness:.48,metalness:.18}),-.45,1.64,-.72);plaque.rotation.x=-Math.PI/2;
+    for(let i=0;i<10;i++)daMesh(group,new THREE.BoxGeometry(.035,.025,.35),dark,-.75+i*.14,1.65,1.12);
+    group.visible=!square;
+  }
+}
+function daWorld(){texПол.image=daTexture('wood').image;texПол.needsUpdate=true;texПыль.image=daTexture('fiber').image;texПыль.needsUpdate=true;матПыли.bumpMap=texПыль;матПыли.bumpScale=.11;матПыли.needsUpdate=true;гПол.material.bumpMap=texПол;гПол.material.bumpScale=.018;гПол.material.roughness=.76;гПол.material.needsUpdate=true;daRobot();}
+
 const Ш = 6.4;          // ширина клетки
 const ВЫС = 3.4;        // высота пыльных стен
 const ТОЛЩ = 1.0;       // толщина стен
@@ -387,6 +467,7 @@ function блокСтены(x, z, длX, длZ, h, y) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(длX, h, длZ), матПыли);
   m.position.set(x, (y === undefined ? h/2 : y), z);
   m.receiveShadow = true; m.castShadow = !слабоеЖелезо;
+  daVisual(()=>daWall(m));
   гЛаб.add(m);
   return m;
 }
@@ -535,6 +616,7 @@ function сделатьПылинку(огонёк) {
     new THREE.MeshBasicMaterial({ color:огонёк || 0xffe8c8, transparent:true, opacity:0,
       depthWrite:false, side:THREE.DoubleSide }));
   метка.rotation.x = -Math.PI/2; world.add(метка);
+  daVisual(()=>daDust(гр, телоП, телоМат, пушинки, пухМат));
   return { гр, телоМат, телоП, пушинки, пухМат, глазаП, светП, тень, метка };
 }
 
@@ -1029,16 +1111,15 @@ function камера(P, кам, dt, мгновенно) {
   let d = В.d*P.зум; const h = В.h*P.зум;
   const гy = 1.2;
   const от = new THREE.Vector3(P.x, гy, P.z);
-  const назад = new THREE.Vector3(-Math.sin(P.yaw)*Math.cos(P.pitch), Math.sin(P.pitch) + 0.42,
-    -Math.cos(P.yaw)*Math.cos(P.pitch)).normalize();
-  лучКам.set(от, назад); лучКам.far = d + 0.6;
-  const пер = лучКам.intersectObjects(гЛаб.children, false);
-  if (пер.length) d = Math.max(1.6, пер[0].distance - 0.5);
-  const цель = new THREE.Vector3(P.x - Math.sin(P.yaw)*d, гy + h*clamp(d/(В.d*P.зум), 0.45, 1), P.z - Math.cos(P.yaw)*d);
+  от.y = 0.35; // Проверяем нижнюю часть модели, чтобы высокий край не прятал её тело.
+  // Проверяем именно фактический отрезок до камеры, включая сглаживание.
+  const цель = new THREE.Vector3(P.x - Math.sin(P.yaw)*d, гy + h, P.z - Math.cos(P.yaw)*d);
+  daCameraClamp(от, цель);
   if (мгновенно) кам.position.copy(цель); else кам.position.lerp(цель, 1 - Math.pow(0.0015, dt));
-  кам.lookAt(P.x + Math.sin(P.yaw)*2.4, 0.9 - Math.sin(P.pitch)*1.6, P.z + Math.cos(P.yaw)*2.4);
   if (тряска > 0) { кам.position.x += rnd(-1,1)*тряска*0.2;
     кам.position.y += rnd(-1,1)*тряска*0.2; кам.position.z += rnd(-1,1)*тряска*0.2; }
+  daCameraClamp(от, кам.position);
+  кам.lookAt(P.x + Math.sin(P.yaw)*2.4, 0.9 - Math.sin(P.pitch)*1.6, P.z + Math.cos(P.yaw)*2.4);
 }
 /* два экрана: сверху первый игрок, снизу второй */
 function рисоватьКадр() {
@@ -1551,6 +1632,7 @@ function проверитьСобытия(dt) {
 }
 
 /* ═══════════ цикл ═══════════ */
+daVisual(()=>daWorld());
 let last = performance.now();
 function loop(now) {
   requestAnimationFrame(loop);
