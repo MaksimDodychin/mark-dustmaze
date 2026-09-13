@@ -28,6 +28,7 @@
   #рекорд { left:12px; top:52px; font-size:13px; opacity:.9; }
   #куски  { right:12px; top:12px; }
   #место  { right:12px; top:52px; font-size:13px; opacity:.9; }
+  #форма  { right:12px; top:92px; font-size:13px; }
   #задача { left:50%; top:12px; transform:translateX(-50%); max-width:70vw; white-space:normal;
     text-align:center; font-size:14px; }
   /* полоска «как близко пылесос» */
@@ -103,6 +104,16 @@
     text-align:center; display:none; line-height:1.45; }
   #err { position:fixed; left:8px; right:8px; top:8px; z-index:99; color:#ff9b9b; font:700 13px/1.4 monospace;
     background:#200; padding:8px; border-radius:8px; display:none; white-space:pre-wrap; }
+  #сюжетХолст { width:min(640px,92vw); height:auto; border-radius:16px;
+    border:2px solid #ffffff22; box-shadow:0 10px 30px #0009; display:block; }
+  #сюжетПравила { display:none; text-align:left; max-width:min(640px,92vw); }
+  #сюжетПравила.видно { display:block; }
+  #сюжетПравила .пр { background:#1e150dcc; border:2px solid #ffffff1a; border-radius:14px;
+    padding:9px 13px; margin-bottom:7px; font-size:14px; }
+  #сюжетПравила .пр b { color:#ffd98a; }
+  #сюжетПравила .пр.зачёркнуто { opacity:.55; }
+  #сюжетПравила .пр.зачёркнуто b { color:#ff9b9b; }
+  #сюжетПравила .пр.зачёркнуто s { opacity:.7; }
   table.рек { margin:0 auto; font-size:14px; border-collapse:collapse; }
   table.рек td { padding:4px 10px; }
   table.рек td.n { text-align:right; opacity:.85; }
@@ -120,7 +131,7 @@
   <link rel="apple-touch-icon-precomposed" sizes="180x180" href="apple-touch-icon.png">
   <meta name="msapplication-TileImage" content="icon-192.png">
   <meta name="msapplication-TileColor" content="#8a5a18">
-  <script>window.__APP_VER = "1b7607dd55";</script>
+  <script>window.__APP_VER = "610099cdb8";</script>
 </head>
 <body>
 <div id="err"></div>
@@ -134,6 +145,7 @@
   <div class="card" id="рекорд">🏆 рекорда пока нет</div>
   <div class="card" id="куски">🔑 0 / 4</div>
   <div class="card" id="место">Под диваном</div>
+  <div class="card" id="форма">⚖️ в форме</div>
   <div class="card" id="задача">Найди выход</div>
   <div id="страхWrap">
     <div id="страхИмя">🤖 ПЫЛЕСОС</div>
@@ -177,12 +189,28 @@
   </div>
   <div class="sub" style="font-size:13px;opacity:.85;margin-top:4px">За кого играем?</div>
   <div id="заКогоРяд" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"></div>
-  <button class="btn ghost" id="рекБтн">🏆 РЕКОРДЫ</button>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+    <button class="btn ghost" id="сюжетБтн">📖 КАК ВСЁ БЫЛО</button>
+    <button class="btn ghost" id="рекБтн">🏆 РЕКОРДЫ</button>
+  </div>
   <div class="sub" style="font-size:12.5px;opacity:.6">
     🎮 Джойстик слева · 🫥 затаиться · 💨 рывок<br>
     Компьютер: <b>WASD / стрелки</b>, <b>Shift</b> — затаиться, <b>Пробел</b> — рывок<br>
     Задумка — Марк · 13.09.2026
   </div>
+</div>
+
+<div class="screen hidden" id="сюжет">
+  <h1 id="сюжетЗагол">📖 КАК ВСЁ БЫЛО</h1>
+  <canvas id="сюжетХолст" width="640" height="360"></canvas>
+  <div class="sub" id="сюжетТекст"></div>
+  <div id="сюжетПравила"></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+    <button class="btn ghost" id="сюжетНазад">◀️ Назад</button>
+    <button class="btn" id="сюжетДальше">Дальше ▶️</button>
+  </div>
+  <button class="btn ghost" id="сюжетЗакр">✖️ Пропустить</button>
+  <div class="sub" id="сюжетСчёт" style="font-size:12.5px;opacity:.6"></div>
 </div>
 
 <div class="screen hidden" id="выбор">
@@ -941,6 +969,8 @@ const Snd = {
   взял() { [660, 880, 1170].forEach((f, i) => setTimeout(() => this.тон(f, 0.16, 'triangle', 0.12), i*70)); },
   победа() { [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => this.тон(f, 0.3, 'triangle', 0.15), i*110)); },
   рывок() { this.шум(0.3, 0.13, 2600, 'highpass'); this.тон(300, 0.28, 'sine', 0.06, 900); },
+  турбо() { this.шум(0.9, 0.22, 900); this.тон(120, 0.9, 'sawtooth', 0.14, 420);
+    setTimeout(() => this.тон(180, 0.7, 'square', 0.08, 520), 180); },
   щель() { this.тон(1200, 0.12, 'sine', 0.06, 1900); },
   /* 😱 СКРИМЕР: рёв мотора, визг и удар */
   скример() { if (!this.ctx) return;
@@ -985,7 +1015,7 @@ const времяТекст = с => Math.floor(с/60) + ':' + (с % 60 < 10 ? '0'
 
 /* ═══════════ движение, камера, управление ═══════════ */
 function новыйИгрок(огонёк, имя) {
-  return { имя, x:0, z:0, скор:0, yaw:0, pitch:0.18, тело_yaw:0,
+  return { имя, x:0, z:0, скор:0, yaw:0, pitch:0.18, тело_yaw:0, толщина:0,
     затаился:false, рывокT:0, рывокОст:0, тянет:0, жив:true, вышел:false,
     стик:{ x:0, y:0 }, вид:сделатьПылинку(огонёк), видКам:1, зум:1,
     клав:{ вперёд:'KeyW', назад:'KeyS', влево:'KeyA', вправо:'KeyD' } };
@@ -1047,7 +1077,8 @@ function двигатьИгрока(P, dt) {
   const d = направление(P);
   if (P.рывокT > 0) P.рывокT -= dt;
   if (P.рывокОст > 0) P.рывокОст -= dt;
-  const базовая = P.затаился ? 0 : (P.рывокT > 0 ? 17 : 7.6);
+  /* ⚖️ «Будь в форме»: толстая пылинка бежит медленнее (правило Марка) */
+  const базовая = P.затаился ? 0 : (P.рывокT > 0 ? 17 : 7.6) * (1 - P.толщина*0.38);
   if (d.сила > 0.06 && базовая > 0) {
     const нx = Math.sin(P.yaw), нz = Math.cos(P.yaw);
     // ⚠️ экранное «право» — это мировое −x, поэтому у бокового шага минус
@@ -1064,10 +1095,23 @@ function двигатьИгрока(P, dt) {
     const п = столкнуть(P.x + dx/q*P.тянет*dt, P.z + dz/q*P.тянет*dt, R_ИГРОКА);
     P.x = п.x; P.z = п.z;
   }
+  обновитьФорму(P, dt);
+}
+/* 🏃 «Не стой на одном месте»: пыль, которая не двигается, сбивается в комок.
+   Стоишь — толстеешь и становишься заметной, бежишь — приходишь в форму. */
+function обновитьФорму(P, dt) {
+  const движется = P.скор > 1.2 && !P.затаился;
+  P.толщина = clamp(P.толщина + (движется ? -0.20 : 0.085)*dt, 0, 1);
 }
 function рывокЖми(P) {
   P = P || П1;
-  if (состояние !== 'игра' || P.рывокОст > 0 || P.затаился || !P.жив) return;
+  if (состояние !== 'игра' || !P.жив) return;
+  if (P === рульИгрок) {                 // у водителя пылесоса это ТУРБО
+    if (робот.турбоОст > 0) return;
+    робот.турбо = 3.5; робот.турбоОст = 8; Snd.турбо();
+    bigMsg('🔴 ТУРБО', 1.2, '#ff6b6b'); return;
+  }
+  if (P.рывокОст > 0 || P.затаился) return;
   P.рывокT = 0.32; P.рывокОст = 3.2; Snd.рывок();
 }
 function рисоватьИгрока(P, dt) {
@@ -1077,6 +1121,7 @@ function рисоватьИгрока(P, dt) {
   if (!в.гр.visible) return;
   в.гр.position.set(P.x, 0.75 + Math.sin(время*3.4 + (P === П2 ? 1.7 : 0))*0.10, P.z);
   в.гр.rotation.y = P.тело_yaw;
+  в.гр.scale.setScalar(1 + P.толщина*0.5);       // растолстел — стало видно
   в.телоП.rotation.x += P.скор*dt*0.5; в.телоП.rotation.z += P.скор*dt*0.3;
   const пр = P.затаился ? 0.25 : 1;
   в.телоМат.opacity = пр; в.телоМат.transparent = P.затаился;
@@ -1203,7 +1248,8 @@ function вспышка(сила, цвет) { const f = $('flash'); f.style.back
   requestAnimationFrame(() => { f.style.transition = 'opacity .5s'; f.style.opacity = 0; }); }
 
 /* ═══════════ 🤖 МОЗГИ ПЫЛЕСОСА ═══════════ */
-const робот = { x:0, z:0, yaw:0, состояние:'патруль', путь:[], цель:null, память:0, думT:0, стоп:false };
+const робот = { x:0, z:0, yaw:0, состояние:'патруль', путь:[], цель:null, память:0, думT:0, стоп:false,
+  турбо:0, турбоКд:16, турбоОст:0 };
 let состояние = 'меню', таймер = 0, опасность = 0, сердцеT = 0;
 let рульИгрок = null, заКого = 'пылинка';
 const РОЛИ = [
@@ -1250,17 +1296,19 @@ function новаяЦельПатруля() {
   }
   робот.цель = { i:0, j:0 };
 }
-function видитИгрока(d, P) {
+function видитИгрока(d, P, турбо) {
   P = P || игрок;
   if (!слож.охотится) return false;
-  if (вУбежище(P.x, P.z)) return false;
+  if (вУбежище(P.x, P.z)) return false;              // убежище прячет всегда
   if (d > 28) return false;
+  /* толстую пылинку видно дальше, а в турборежиме он смотрит зорче */
+  const к = (1 + P.толщина*0.55) * (турбо ? 1.35 : 1);
   let раз = Math.atan2(P.x - робот.x, P.z - робот.z) - робот.yaw;
   while (раз > Math.PI) раз -= Math.PI*2; while (раз < -Math.PI) раз += Math.PI*2;
-  const вЛуче = Math.abs(раз) < 0.78;
-  const рядом = d < (P.затаился ? 4.5 : 8.5);
+  const вЛуче = Math.abs(раз) < (турбо ? 0.95 : 0.78);
+  const рядом = d < (P.затаился ? 4.5 : 8.5) * к;
   if (!вЛуче && !рядом) return false;
-  if (P.затаился && d > 5.5) return false;            // стоишь смирно — ты просто пыль
+  if (P.затаился && d > 5.5*к) return false;          // стоишь смирно — ты просто пыль
   return !стенаМежду(робот.x, робот.z, P.x, P.z);
 }
 function водитьПылесос(P, dt) {
@@ -1321,6 +1369,21 @@ function обновитьРобота(dt) {
     щётки.forEach((г, k) => г.rotation.y += dt*(k ? -9 : 9));
     игроки.forEach(P => P.тянет = 0); воронка.material.opacity = 0; return;
   }
+  /* 🔴 ТУРБОРЕЖИМ (правило Марка): пылесос разгоняется, и убежать уже нельзя —
+     помогает только маскировка: затаиться, щель или убежище. */
+  if (робот.турбо > 0) робот.турбо -= dt;
+  if (робот.турбоОст > 0) робот.турбоОст -= dt;
+  if (!рульИгрок && слож.охотится) {
+    робот.турбоКд -= dt;
+    if (робот.турбоКд <= 0) {
+      робот.турбо = 6; робот.турбоКд = rnd(17, 26);
+      bigMsg('🔴 ТУРБОРЕЖИМ', 1.8, '#ff6b6b');
+      say('🔴 Турборежим! Быстрые ноги уже не спасут — прячься.', 3.4);
+      Snd.турбо(); Snd.оборвать(3);
+    }
+  }
+  const турбо = робот.турбо > 0;
+  const К_ТУРБО = турбо ? 1.45 : 1;
   const моты = игроки.filter(P => P !== рульИгрок && P.жив && !P.вышел);
   /* кто ближе — за тем и гонимся */
   let жертва = null, dбл = 1e9;
@@ -1328,7 +1391,7 @@ function обновитьРобота(dt) {
 
   if (рульИгрок) { водитьПылесос(рульИгрок, dt); }
   else if (жертва) {
-    if (видитИгрока(dбл, жертва)) {
+    if (видитИгрока(dбл, жертва, турбо)) {
       if (робот.состояние !== 'охота') { Snd.оборвать(2); Snd.тон(880, 0.2, 'square', 0.1, 300);
         say('🤖 Он тебя заметил!', 1.6); }
       робот.состояние = 'охота'; робот.память = 4;
@@ -1351,7 +1414,7 @@ function обновитьРобота(dt) {
     if (шагКл) { цx = мирX(шагКл.i); цz = мирZ(шагКл.j); }
     const вx = цx - робот.x, вz = цz - робот.z, q = Math.hypot(вx, вz);
     if (q > 0.25) {
-      const с = слож.скор * (робот.состояние === 'охота' ? 1.12 : 0.8);
+      const с = слож.скор * (робот.состояние === 'охота' ? 1.12 : 0.8) * К_ТУРБО;
       робот.x += вx/q*с*dt; робот.z += вz/q*с*dt;
       let цY = Math.atan2(вx, вz), раз = цY - робот.yaw;
       while (раз > Math.PI) раз -= Math.PI*2; while (раз < -Math.PI) раз += Math.PI*2;
@@ -1366,16 +1429,20 @@ function обновитьРобота(dt) {
   глазРобота.material.emissiveIntensity = робот.состояние === 'охота'
     ? 1.6 + Math.sin(время*14)*0.8 : 0.8;
   глазРобота.material.emissive.setHex(робот.состояние === 'охота' ? 0xff2222 : 0x22ccff);
-  фары.forEach(л => л.color.setHex(робот.состояние === 'охота' ? 0xffd0c0 : 0xfff0cc));
+  фары.forEach(л => { л.color.setHex(турбо ? 0xff6644 : (робот.состояние === 'охота' ? 0xffd0c0 : 0xfff0cc));
+    л.intensity = турбо ? 26 : 16; });
+  светРобота.color.setHex(турбо ? 0xff6644 : 0xbfd8ff);
+  if (турбо && Math.random() < dt*6) Snd.шум(0.12, 0.06, 1800, 'highpass');
 
   /* 🌪 всасывание — считаем для каждой пылинки отдельно */
   let сильнее = 0;
   моты.forEach(P => {
     const d = Math.hypot(P.x - робот.x, P.z - робот.z);
     const безопасно = вУбежище(P.x, P.z) || (слож.круглый && вУглу(P));
-    const тянетЛи = d < слож.всосR && (робот.состояние === 'охота' || d < 5.5);
+    const всосR = слож.всосR * (турбо ? 1.4 : 1) * (1 + P.толщина*0.25);
+    const тянетЛи = d < всосR && (робот.состояние === 'охота' || d < 5.5);
     if (тянетЛи && !безопасно) {
-      const k = clamp(1 - d/слож.всосR, 0, 1);
+      const k = clamp(1 - d/всосR, 0, 1);
       P.тянет = k*12; сильнее = Math.max(сильнее, k);
       if (d < слож.ловитR) поймал(P);
     } else {
@@ -1392,9 +1459,10 @@ function обновитьРобота(dt) {
   $('опасно').style.opacity = (робот.состояние === 'охота' ? 0.35 : 0.12) * опасность +
     (сильнее > 0 ? 0.45 : 0);
   $('страхЗал').style.width = Math.round(опасность*100) + '%';
-  $('страхИмя').textContent = рульИгрок ? '🤖 ТЫ — ПЫЛЕСОС. Лови пылинку!'
+  $('страхИмя').textContent = рульИгрок ? (робот.турбо > 0 ? '🔴 ТУРБО!' : '🤖 ТЫ — ПЫЛЕСОС. Лови пылинку!')
+    : (турбо ? '🔴 ТУРБОРЕЖИМ — ПРЯЧЬСЯ!'
     : (сильнее > 0 ? '🌪 ЗАСАСЫВАЕТ!'
-    : (робот.состояние === 'охота' ? '🤖 ОН ГОНИТСЯ ЗА ТОБОЙ' : '🤖 ПЫЛЕСОС УБИРАЕТСЯ'));
+    : (робот.состояние === 'охота' ? '🤖 ОН ГОНИТСЯ ЗА ТОБОЙ' : '🤖 ПЫЛЕСОС УБИРАЕТСЯ')));
   сердцеT -= dt;
   if (сердцеT <= 0 && опасность > 0.35) { Snd.сердце(опасность); сердцеT = 1.15 - опасность*0.75; }
 }
@@ -1601,6 +1669,224 @@ $('рекБтн').onclick = () => {
 };
 $('рекЗакр').onclick = () => { $('рекЭкран').classList.add('hidden'); $('menu').classList.remove('hidden'); };
 
+/* ═══════════════════════════════════════════════════════════
+   📖 КАК ВСЁ БЫЛО — история пылинок словами Марка.
+   Картинки рисуем прямо на холсте, чтобы игра осталась одним файлом.
+   ═══════════════════════════════════════════════════════════ */
+const ПРАВИЛА = [
+  { em:'🫥', имя:'Затаись, когда он рядом',
+    d:'Стоящую пылинку он не отличает от обычной пыли. Бежит — значит живая.' },
+  { em:'🏃', имя:'Но не стой на одном месте',
+    d:'Пыль, которая не двигается, сбивается в комок. Постоишь — обрастёшь.' },
+  { em:'⚖️', имя:'Будь в форме',
+    d:'Толстых пылинок засосали первее всех: они медленнее, их видно дальше и тянет сильнее.' },
+  { em:'🔴', имя:'На турборежиме ноги не спасают',
+    d:'Когда он разгоняется, убежать нельзя. Работает только маскировка: замри, щель или убежище.' },
+  { em:'📐', имя:'Угол спасает только от круглого',
+    d:'Квадратный выметает и углы. На сложном это правило больше не работает.', мёртвое:true },
+  { em:'🕳', имя:'Иди туда, где он не пролезет',
+    d:'Щель — твой друг. Ты пройдёшь, а он — нет.' },
+  { em:'🛡', имя:'Убежище важнее короткой дороги',
+    d:'В норку под пылью он не заезжает. Лучше крюк, чем контейнер.' },
+  { em:'💡', имя:'Не выходи на свет фар',
+    d:'Что попало в луч — то уже нашли.' },
+  { em:'👂', имя:'Слушай гул',
+    d:'Чем громче и выше жужжание, тем он ближе. Уши работают там, где глаза бесполезны.' },
+];
+
+function холстФон(g, W, H, светло) {
+  const ст = g.createLinearGradient(0, 0, 0, H*0.42);
+  ст.addColorStop(0, светло ? '#3a2e22' : '#241a12'); ст.addColorStop(1, '#171009');
+  g.fillStyle = ст; g.fillRect(0, 0, W, H);
+  const пол = g.createLinearGradient(0, H*0.42, 0, H);
+  пол.addColorStop(0, '#6b4527'); пол.addColorStop(1, '#8a5b32');
+  g.fillStyle = пол; g.fillRect(0, H*0.42, W, H*0.58);
+  g.strokeStyle = 'rgba(40,22,10,.45)'; g.lineWidth = 3;
+  for (let i = 1; i < 5; i++) { const y = H*0.42 + i*H*0.58/5;
+    g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+  g.fillStyle = '#2e2318'; g.fillRect(0, H*0.36, W, H*0.07);   // плинтус
+}
+function холстПылинка(g, x, y, r, грустная) {
+  g.save();
+  const си = g.createRadialGradient(x, y, 0, x, y, r*2.6);
+  си.addColorStop(0, 'rgba(255,248,230,.4)'); си.addColorStop(1, 'rgba(255,248,230,0)');
+  g.fillStyle = си; g.beginPath(); g.arc(x, y, r*2.6, 0, 7); g.fill();
+  g.strokeStyle = '#fffaf0'; g.lineWidth = Math.max(1, r*0.16);
+  for (let i = 0; i < 18; i++) { const a = i/18*Math.PI*2, L = r*(1.35 + Math.random()*0.5);
+    g.beginPath(); g.moveTo(x + Math.cos(a)*r*0.8, y + Math.sin(a)*r*0.8);
+    g.lineTo(x + Math.cos(a)*L, y + Math.sin(a)*L); g.stroke(); }
+  g.fillStyle = '#f7f2e4'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  g.fillStyle = '#2a2218';
+  g.beginPath(); g.arc(x - r*0.32, y - r*0.12, r*0.15, 0, 7); g.fill();
+  g.beginPath(); g.arc(x + r*0.32, y - r*0.12, r*0.15, 0, 7); g.fill();
+  if (грустная) { g.strokeStyle = '#2a2218'; g.lineWidth = Math.max(1, r*0.13);
+    g.beginPath(); g.arc(x, y + r*0.62, r*0.36, Math.PI*1.15, Math.PI*1.85); g.stroke(); }
+  g.restore();
+}
+function холстРобот(g, x, y, r, квадрат, злой) {
+  g.save();
+  g.fillStyle = 'rgba(0,0,0,.45)';
+  g.beginPath(); g.ellipse(x, y + r*0.55, r*1.05, r*0.4, 0, 0, 7); g.fill();
+  const кор = g.createRadialGradient(x - r*0.3, y - r*0.4, r*0.1, x, y, r);
+  кор.addColorStop(0, квадрат ? '#5a4444' : '#46505f'); кор.addColorStop(1, квадрат ? '#1c1414' : '#151a22');
+  g.fillStyle = кор;
+  if (квадрат) { g.beginPath(); g.roundRect(x - r, y - r*0.8, r*2, r*1.6, r*0.28); g.fill();
+    g.fillStyle = '#d9cdb4';
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx, sz]) => {
+      g.save(); g.translate(x + sx*r*0.92, y + sz*r*0.72); g.rotate(Math.PI/4);
+      g.fillRect(-r*0.16, -r*0.16, r*0.32, r*0.32); g.restore(); });
+  } else { g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }
+  g.strokeStyle = '#0b0e13'; g.lineWidth = r*0.12;
+  if (квадрат) { g.beginPath(); g.roundRect(x - r, y - r*0.8, r*2, r*1.6, r*0.28); g.stroke(); }
+  else { g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke(); }
+  /* башенка лидара */
+  g.fillStyle = квадрат ? '#3a2c2c' : '#39414f';
+  g.beginPath(); g.roundRect(x - r*0.24, y - r*0.95, r*0.48, r*0.3, r*0.1); g.fill();
+  g.fillStyle = '#2ad0ff'; g.beginPath(); g.arc(x, y - r*0.8, r*0.1, 0, 7); g.fill();
+  for (const sx of [-1, 1]) {
+    const гx = x + sx*r*0.34, гy = y - r*0.12;
+    const гс = g.createRadialGradient(гx, гy, 0, гx, гy, r*0.46);
+    гс.addColorStop(0, злой ? 'rgba(255,90,80,.95)' : 'rgba(120,200,255,.8)');
+    гс.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = гс; g.beginPath(); g.arc(гx, гy, r*0.46, 0, 7); g.fill();
+    g.fillStyle = злой ? '#ff2b2b' : '#7dd3fc';
+    g.beginPath(); g.arc(гx, гy, r*0.15, 0, 7); g.fill();
+  }
+  g.fillStyle = '#05070a';
+  g.beginPath(); g.ellipse(x, y + r*0.45, r*0.6, r*0.2, 0, 0, 7); g.fill();
+  g.restore();
+}
+
+const СЛАЙДЫ = [
+  { загол:'📖 СНАЧАЛА БЫЛО ХОРОШО',
+    текст:'Раньше пылинки жили там, куда обычному пылесосу не пролезть: под плинтусом, ' +
+          'за ножкой шкафа, в самой глубине. Труба тянулась — и не доставала.',
+    рисуй(g, W, H) {
+      холстФон(g, W, H, true);
+      g.fillStyle = '#0d0906'; g.fillRect(0, H*0.40, W*0.30, H*0.05);
+      холстПылинка(g, W*0.11, H*0.50, 15);
+      холстПылинка(g, W*0.19, H*0.57, 12);
+      холстПылинка(g, W*0.07, H*0.63, 11);
+      холстПылинка(g, W*0.24, H*0.47, 10);
+      /* труба обычного пылесоса — тянется, но не достаёт */
+      g.strokeStyle = '#3d4a5c'; g.lineWidth = 34; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(W*1.05, H*0.30); g.quadraticCurveTo(W*0.75, H*0.45, W*0.50, H*0.66); g.stroke();
+      g.strokeStyle = '#57677d'; g.lineWidth = 22;
+      g.beginPath(); g.moveTo(W*1.05, H*0.30); g.quadraticCurveTo(W*0.75, H*0.45, W*0.50, H*0.66); g.stroke();
+      g.fillStyle = '#0a0d12'; g.beginPath(); g.ellipse(W*0.48, H*0.68, 22, 13, -0.6, 0, 7); g.fill();
+      g.fillStyle = '#ffd98a'; g.font = 'bold 20px system-ui'; g.textAlign = 'center';
+      g.fillText('не достаёт', W*0.62, H*0.86);
+    } },
+  { загол:'🤖 ПОТОМ ПРИШЛИ КРУГЛЫЕ',
+    текст:'Появились роботы-пылесосы. Они ездили сами и доставали почти везде. ' +
+          'Почти — потому что круглым боком до угла не дотянуться. И пылинки стали прятаться в углах.',
+    рисуй(g, W, H) {
+      холстФон(g, W, H);
+      /* угол комнаты */
+      g.fillStyle = '#2e2318'; g.fillRect(0, 0, W*0.16, H);
+      g.strokeStyle = '#7ef2c0'; g.lineWidth = 3; g.setLineDash([8, 7]);
+      g.beginPath(); g.arc(W*0.16, H*0.44, 74, 0, Math.PI/2); g.stroke(); g.setLineDash([]);
+      холстПылинка(g, W*0.22, H*0.52, 13);
+      холстПылинка(g, W*0.245, H*0.63, 11);
+      холстРобот(g, W*0.62, H*0.60, 68, false, false);
+      g.fillStyle = '#7ef2c0'; g.font = 'bold 19px system-ui'; g.textAlign = 'left';
+      g.fillText('в углу не достанет', W*0.30, H*0.28);
+    } },
+  { загол:'⬛ А ПОТОМ ОНИ ЭВОЛЮЦИОНИРОВАЛИ',
+    текст:'Пылесосы стали квадратными. С угловыми щётками. Специально для того, ' +
+          'чтобы вычищать именно углы.',
+    рисуй(g, W, H) {
+      холстФон(g, W, H);
+      холстРобот(g, W*0.28, H*0.62, 52, false, false);
+      g.strokeStyle = '#ffd98a'; g.lineWidth = 5; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(W*0.42, H*0.60); g.lineTo(W*0.54, H*0.60); g.stroke();
+      g.beginPath(); g.moveTo(W*0.50, H*0.55); g.lineTo(W*0.55, H*0.60); g.lineTo(W*0.50, H*0.65); g.stroke();
+      холстРобот(g, W*0.72, H*0.58, 78, true, true);
+      g.fillStyle = '#ff9b9b'; g.font = 'bold 19px system-ui'; g.textAlign = 'center';
+      g.fillText('угловые щётки', W*0.72, H*0.93);
+    } },
+  { загол:'🌪 И ВСЕХ ЖДАЛ КОНТЕЙНЕР',
+    текст:'В надежде спастись пылинки, как всегда, спрятались по углам. ' +
+          'Но угол больше не был углом. Всех ждала гибель и маленький пыльный контейнер.',
+    рисуй(g, W, H) {
+      холстФон(g, W, H);
+      g.fillStyle = '#2e2318'; g.fillRect(0, 0, W*0.14, H);
+      холстРобот(g, W*0.30, H*0.55, 74, true, true);
+      /* воронка всасывания к углу */
+      const в = g.createLinearGradient(W*0.30, H*0.55, W*0.10, H*0.62);
+      в.addColorStop(0, 'rgba(255,170,110,.55)'); в.addColorStop(1, 'rgba(255,170,110,0)');
+      g.fillStyle = в; g.beginPath(); g.moveTo(W*0.30, H*0.42); g.lineTo(W*0.06, H*0.50);
+      g.lineTo(W*0.06, H*0.76); g.lineTo(W*0.30, H*0.70); g.closePath(); g.fill();
+      холстПылинка(g, W*0.17, H*0.57, 11, true);
+      /* контейнер с пылинками */
+      g.fillStyle = '#20262f'; g.beginPath(); g.roundRect(W*0.62, H*0.46, W*0.28, H*0.34, 14); g.fill();
+      g.strokeStyle = '#48525f'; g.lineWidth = 5; g.stroke();
+      g.fillStyle = 'rgba(200,190,170,.55)';
+      g.beginPath(); g.roundRect(W*0.645, H*0.60, W*0.23, H*0.17, 8); g.fill();
+      холстПылинка(g, W*0.70, H*0.68, 9, true);
+      холстПылинка(g, W*0.78, H*0.71, 8, true);
+      холстПылинка(g, W*0.84, H*0.66, 7, true);
+      g.fillStyle = '#ff9b9b'; g.font = 'bold 18px system-ui'; g.textAlign = 'center';
+      g.fillText('контейнер для пыли', W*0.76, H*0.90);
+    } },
+  { загол:'🌫 ВЫЖИЛА ОДНА',
+    текст:'Одна пылинка уцелела — потому что соблюдала правила. Это ты. ' +
+          'Пыльный мститель. Вот эти правила — держи их в голове, и контейнер тебя не получит.',
+    правила:true,
+    рисуй(g, W, H) {
+      холстФон(g, W, H);
+      /* щель в стене, в которую он не пролез */
+      g.fillStyle = '#2e2318'; g.fillRect(W*0.30, 0, W*0.16, H);
+      g.fillStyle = '#0d0906'; g.fillRect(W*0.30, H*0.55, W*0.16, H*0.22);
+      const св = g.createRadialGradient(W*0.38, H*0.66, 4, W*0.38, H*0.66, 90);
+      св.addColorStop(0, 'rgba(126,242,192,.35)'); св.addColorStop(1, 'rgba(126,242,192,0)');
+      g.fillStyle = св; g.fillRect(0, 0, W, H);
+      холстПылинка(g, W*0.38, H*0.66, 20);
+      холстРобот(g, W*0.74, H*0.58, 74, true, true);
+      g.fillStyle = '#7ef2c0'; g.font = 'bold 19px system-ui'; g.textAlign = 'center';
+      g.fillText('сюда он не пролез', W*0.38, H*0.24);
+    } },
+];
+
+let слайд = 0;
+function рисоватьСлайд() {
+  const с = СЛАЙДЫ[слайд];
+  const cv = $('сюжетХолст'), g = cv.getContext('2d');
+  g.clearRect(0, 0, cv.width, cv.height);
+  с.рисуй(g, cv.width, cv.height);
+  $('сюжетЗагол').textContent = с.загол;
+  $('сюжетТекст').textContent = с.текст;
+  $('сюжетСчёт').textContent = (слайд + 1) + ' из ' + СЛАЙДЫ.length;
+  $('сюжетНазад').style.visibility = слайд > 0 ? 'visible' : 'hidden';
+  $('сюжетДальше').textContent = слайд < СЛАЙДЫ.length - 1 ? 'Дальше ▶️' : '▶️ ИГРАТЬ';
+  const пр = $('сюжетПравила');
+  пр.classList.toggle('видно', !!с.правила);
+  if (с.правила && !пр.dataset.готово) {
+    пр.innerHTML = ПРАВИЛА.map((п, k) => '<div class="пр' + (п.мёртвое ? ' зачёркнуто' : '') + '">' +
+      п.em + ' <b>' + (k+1) + '. ' + (п.мёртвое ? '<s>' + п.имя + '</s>' : п.имя) + '</b><br>' + п.d + '</div>').join('');
+    пр.dataset.готово = '1';
+  }
+}
+function показатьСюжет(с0) {
+  слайд = с0 || 0;
+  ['menu','выбор','рекЭкран','over'].forEach(id => $(id).classList.add('hidden'));
+  $('сюжет').classList.remove('hidden');
+  рисоватьСлайд();
+  try { localStorage.setItem('пыльмст-сюжет', '1'); } catch (_) {}
+}
+function закрытьСюжет() {
+  $('сюжет').classList.add('hidden'); $('menu').classList.remove('hidden'); рисоватьРоли();
+}
+$('сюжетБтн').onclick = () => показатьСюжет(0);
+$('сюжетЗакр').onclick = закрытьСюжет;
+$('сюжетНазад').onclick = () => { слайд = Math.max(0, слайд - 1); рисоватьСлайд(); };
+$('сюжетДальше').onclick = () => {
+  if (слайд < СЛАЙДЫ.length - 1) { слайд++; рисоватьСлайд(); }
+  else закрытьСюжет();
+};
+/* в первый раз показываем историю сами */
+try { if (!localStorage.getItem('пыльмст-сюжет')) setTimeout(() => показатьСюжет(0), 600); } catch (_) {}
+
 /* ═══════════ проверки по ходу игры ═══════════ */
 function проверитьСобытия(dt) {
   const моты = игроки.filter(P => P !== рульИгрок);
@@ -1652,6 +1938,9 @@ function loop(now) {
     камера(П1, camera, dt, false);
     if (вдвоём) камера(П2, camera2, dt, false);
     $('часы').textContent = времяТекст(таймер);
+    const т = П1.толщина;
+    $('форма').textContent = т < 0.25 ? '⚖️ в форме' : (т < 0.6 ? '⚖️ обрастаешь пылью' : '⚖️ РАСТОЛСТЕЛА!');
+    $('форма').style.color = т < 0.25 ? '' : (т < 0.6 ? '#ffd98a' : '#ff9b9b');
     $('рывокБтн').classList.toggle('пусто', П1.рывокОст > 0);
     $('затаБтн').classList.toggle('жмут', П1.затаился);
     if (вдвоём) { $('рывокБтн2').classList.toggle('пусто', П2.рывокОст > 0);
@@ -1702,6 +1991,14 @@ window.__dbg = {
   get corner() { return вУглу(П1); },
   get shelter() { return вУбежище(П1.x, П1.z); },
   get hidden() { return П1.затаился; },
+  get fat() { return +П1.толщина.toFixed(2); },
+  get speed() { return +П1.скор.toFixed(2); },
+  setFat(v) { П1.толщина = clamp(v, 0, 1); return П1.толщина; },
+  get turbo() { return +робот.турбо.toFixed(1); },
+  setTurbo(v) { робот.турбо = v; return робот.турбо; },
+  toMenu() { состояние = 'меню'; document.body.classList.remove('play','вдвоём');
+    ['выбор','рекЭкран','over','сюжет'].forEach(id => $(id).classList.add('hidden'));
+    $('menu').classList.remove('hidden'); return состояние; },
   get records() { return Object.assign({}, сохр.рекорды); },
   get maze() { return { N, стен:стеныКороба.length, щелей:щели.length, убежищ:убежища.length,
     кусочков:кусочки.length }; },
