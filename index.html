@@ -131,7 +131,7 @@
   <link rel="apple-touch-icon-precomposed" sizes="180x180" href="apple-touch-icon.png">
   <meta name="msapplication-TileImage" content="icon-192.png">
   <meta name="msapplication-TileColor" content="#8a5a18">
-  <script>window.__APP_VER = "7f8e4d06b4";</script>
+  <script>window.__APP_VER = "068e7291a6";</script>
 </head>
 <body>
 <div id="err"></div>
@@ -190,7 +190,7 @@
   <div class="sub" style="font-size:13px;opacity:.85;margin-top:4px">За кого играем?</div>
   <div id="заКогоРяд" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
-    <button class="btn ghost" id="сюжетБтн">📖 КАК ВСЁ БЫЛО</button>
+    <button class="btn ghost" id="сюжетБтн">🎬 МУЛЬТИК: КАК ВСЁ БЫЛО</button>
     <button class="btn ghost" id="рекБтн">🏆 РЕКОРДЫ</button>
   </div>
   <div class="sub" style="font-size:12.5px;opacity:.6">
@@ -200,6 +200,7 @@
   </div>
 </div>
 
+<button class="btn" id="мультПропуск" style="display:none;position:fixed;top:12px;right:12px;z-index:60">⏭ Пропустить</button>
 <div class="screen hidden" id="сюжет">
   <h1 id="сюжетЗагол">📖 КАК ВСЁ БЫЛО</h1>
   <canvas id="сюжетХолст" width="640" height="360"></canvas>
@@ -1877,15 +1878,178 @@ function показатьСюжет(с0) {
 function закрытьСюжет() {
   $('сюжет').classList.add('hidden'); $('menu').classList.remove('hidden'); рисоватьРоли();
 }
-$('сюжетБтн').onclick = () => показатьСюжет(0);
+$('сюжетБтн').onclick = () => мультИПравила();          // 🎬 Марк 24.10: история — мультиком
 $('сюжетЗакр').onclick = закрытьСюжет;
 $('сюжетНазад').onclick = () => { слайд = Math.max(0, слайд - 1); рисоватьСлайд(); };
 $('сюжетДальше').onclick = () => {
   if (слайд < СЛАЙДЫ.length - 1) { слайд++; рисоватьСлайд(); }
   else закрытьСюжет();
 };
-/* в первый раз показываем историю сами */
-try { if (!localStorage.getItem('пыльмст-сюжет')) setTimeout(() => показатьСюжет(0), 600); } catch (_) {}
+/* ═══════════ 🎬 МУЛЬТИК «КАК ВСЁ БЫЛО» (заказ Марка 24.10.2026, вместо картинок) ═══════════
+   «Сначала пылинки живут нормально, потом появляется круглый пылесос — они бегут к углам, он проезжает мимо,
+   но уже появляются квадратные. И появляется тень робота-пылесоса и пылинок, они пытаются спастись, но их
+   засасывает даже в углах. И потом начинают появляться объявления: пропала пылинка, кто найдёт — получит
+   вознаграждение, или пропал пыльный пёсик.»
+   Снято в 3D теми же моделями, что в игре; декорация — комната с плинтусом далеко от лабиринта (z = 900). */
+const МЗ = 900;
+const МУЛ = { t:0, после:null, гр:null, пылинки:[], роботы:[], пёс:null, я:null, тень:null, плакаты:[], кадр:-1, свет0:0 };
+function клонРобота(квадрат) {                         // копия робота из игры: круглый R-9 или квадратный Q-7
+  const к = пылесосГр.clone(true), ориг = [], копии = [];
+  пылесосГр.traverse(o => ориг.push(o)); к.traverse(o => копии.push(o));
+  const пара = new Map(ориг.map((o, i) => [o, копии[i]]));
+  круглыеЧасти.forEach(ч => { const c = пара.get(ч); if (c) c.visible = !квадрат; });
+  квадратныеЧасти.forEach(ч => { const c = пара.get(ч); if (c) c.visible = квадрат; });
+  ориг.forEach((o, i) => { if (!o.isSpotLight) return; const c = копии[i]; c.castShadow = false; c.intensity = 9; const ц = пара.get(o.target); if (ц) c.target = ц; });   // фары светят вперёд своей копии
+  к.userData.воронка = пара.get(воронка); к.visible = true; МУЛ.гр.add(к);
+  return к;
+}
+function мультПылинка(x, z, огонёк) {                  // пылинка из игры; свет оставляем только у главной
+  const в = сделатьПылинку(огонёк); if (!огонёк) в.гр.remove(в.светП);
+  в.гр.position.set(x, 0.75, z); в.x = x; в.z = z; в.фаза = Math.random()*6; в.жив = true; в.куда = null; в.тянет = null;
+  return в;
+}
+function мультПёсик(x, z) {                            // 🐶 пыльный пёсик: пылинка с ушками, носом и хвостиком
+  const в = мультПылинка(x, z); const пух = в.пухМат;
+  for (const s of [-1, 1]) { const у = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), пух); у.scale.set(0.6, 1.4, 0.4); у.position.set(s*0.34, 0.42, 0.05); у.rotation.z = s*0.5; в.гр.add(у); }
+  const нос = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), new THREE.MeshBasicMaterial({ color:0x2a2218 })); нос.position.set(0, -0.02, 0.5); в.гр.add(нос);
+  const хв = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.5, 6), пух); хв.position.set(0, 0.1, -0.5); хв.rotation.x = -1.1; в.гр.add(хв); в.хвост = хв;
+  в.гр.scale.setScalar(0.8); в.пёс = true; return в;
+}
+function мультПлакат(заг, низ, рисуй) {               // 📜 объявление на стене
+  const c = document.createElement('canvas'); c.width = 400; c.height = 520; const g = c.getContext('2d');
+  g.fillStyle = '#f3ead2'; g.fillRect(0, 0, 400, 520); g.strokeStyle = '#b9a77e'; g.lineWidth = 6; g.strokeRect(10, 10, 380, 500);
+  g.fillStyle = '#b91c1c'; g.textAlign = 'center';
+  заг.forEach((з, i) => { let f = 46; do { g.font = `900 ${f}px system-ui`; f -= 2; } while (g.measureText(з).width > 360 && f > 20); g.fillText(з, 200, 72 + i*50); });   // длинное «ПЫЛЬНЫЙ ПЁСИК» — помельче, чтобы влезло
+  g.save(); g.translate(0, 0); рисуй(g); g.restore();
+  g.fillStyle = '#2a2218'; g.font = '700 27px system-ui'; низ.forEach((s, i) => g.fillText(s, 200, 418 + i*34));
+  for (let x = 30; x < 380; x += 34) { g.strokeStyle = '#b9a77e'; g.lineWidth = 2; g.beginPath(); g.moveTo(x, 500); g.lineTo(x, 520); g.stroke(); }   // отрывные полоски
+  const т = new THREE.CanvasTexture(c); т.colorSpace = THREE.SRGBColorSpace;
+  const м = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 3.38), new THREE.MeshStandardMaterial({ map:т, roughness:0.9, emissive:0xffffff, emissiveMap:т, emissiveIntensity:0.25 }));
+  м.visible = false; МУЛ.гр.add(м); return м;
+}
+function пёсикКартинка(g, x, y, r) {                   // 🐶 нарисованный пыльный пёсик для плаката
+  холстПылинка(g, x, y, r, true);
+  g.fillStyle = '#cbbd9c'; g.strokeStyle = '#7a6a4c'; g.lineWidth = 3;
+  for (const s of [-1, 1]) { g.beginPath(); g.ellipse(x + s*r*0.85, y - r*0.75, r*0.28, r*0.55, s*0.5, 0, 7); g.fill(); g.stroke(); }   // ушки темнее бумаги — видно
+  g.fillStyle = '#2a2218'; g.beginPath(); g.arc(x, y + r*0.2, r*0.13, 0, 7); g.fill();
+}
+function мультСобрать() {
+  МУЛ.гр = new THREE.Group(); world.add(МУЛ.гр);
+  const пол = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ map:texПол, roughness:0.76 }));
+  пол.material.map = пол.material.map.clone(); пол.material.map.repeat.set(5, 5); пол.material.map.wrapS = пол.material.map.wrapT = THREE.RepeatWrapping; пол.material.map.needsUpdate = true;
+  пол.rotation.x = -Math.PI/2; пол.position.set(0, 0, МЗ); пол.receiveShadow = true; МУЛ.гр.add(пол);
+  const обоиТ = холст(256, (g, S) => { g.fillStyle = '#c9b48f'; g.fillRect(0, 0, S, S); g.strokeStyle = 'rgba(120,90,60,.35)'; g.lineWidth = 3;
+    for (let x = 16; x < S; x += 32) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, S); g.stroke(); }
+    g.fillStyle = 'rgba(140,100,60,.3)'; for (let y = 24; y < S; y += 48) for (let x = 0; x < S; x += 32) { g.beginPath(); g.arc(x, y + (x/32 % 2)*24, 5, 0, 7); g.fill(); } });
+  обоиТ.wrapS = обоиТ.wrapT = THREE.RepeatWrapping; обоиТ.repeat.set(6, 3);
+  const стМ = new THREE.MeshStandardMaterial({ map:обоиТ, roughness:0.95 }), плМ = new THREE.MeshStandardMaterial({ color:0x4a3524, roughness:0.6 });
+  const стена = (w, x, z, ry) => { const s = new THREE.Mesh(new THREE.PlaneGeometry(w, 14), стМ); s.position.set(x, 7, z); s.rotation.y = ry; МУЛ.гр.add(s);
+    const п = new THREE.Mesh(new THREE.BoxGeometry(w, 1.1, 0.35), плМ); п.position.set(x + Math.sin(ry)*0.17, 0.55, z + Math.cos(ry)*0.17); п.rotation.y = ry; МУЛ.гр.add(п); };
+  стена(32, 0, МЗ - 16, 0); стена(32, -16, МЗ, Math.PI/2); стена(32, 16, МЗ, -Math.PI/2);
+  const щель = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.7), new THREE.MeshBasicMaterial({ color:0x050302 })); щель.position.set(-5, 0.56, МЗ - 15.79); МУЛ.гр.add(щель);   // щель под плинтусом
+  // 🌫 пылинки и пёсик живут у плинтуса
+  МУЛ.пылинки = [[-6, -11], [-3, -12], [0, -10.5], [3, -12.5], [6, -11], [-8.5, -9.5]].map(([x, z]) => мультПылинка(x, МЗ + z));
+  МУЛ.пёс = мультПёсик(1.5, МЗ - 9); МУЛ.пылинки.push(МУЛ.пёс);
+  МУЛ.я = мультПылинка(-5, МЗ - 15.9, 0x7ef2c0); МУЛ.я.гр.visible = false; МУЛ.я.тень.visible = false;
+  // 🤖 роботы: круглый и два квадратных
+  МУЛ.роботы = [клонРобота(false), клонРобота(true), клонРобота(true)];
+  МУЛ.роботы.forEach((р, i) => { р.position.set(30, 0, МЗ + 30); р.visible = false; });
+  // 🌑 тень робота
+  МУЛ.тень = new THREE.Mesh(new THREE.CircleGeometry(6, 32), new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0, depthWrite:false }));
+  МУЛ.тень.rotation.x = -Math.PI/2; МУЛ.тень.position.set(0, 0.05, МЗ - 6); МУЛ.гр.add(МУЛ.тень);
+  // 📜 объявления
+  МУЛ.плакаты = [
+    мультПлакат(['ПРОПАЛА', 'ПЫЛИНКА!'], ['Нашедшему —', 'ВОЗНАГРАЖДЕНИЕ!'], g => холстПылинка(g, 200, 255, 70, true)),
+    мультПлакат(['ПРОПАЛ', 'ПЫЛЬНЫЙ ПЁСИК'], ['Откликается на «Пушок».', 'Очень скучаем!'], g => пёсикКартинка(g, 200, 260, 66)),
+    мультПлакат(['ПРОПАЛИ', 'БЛИЗНЕЦЫ'], ['Видели в последний раз', 'у плинтуса'], g => { холстПылинка(g, 150, 260, 48, true); холстПылинка(g, 250, 260, 48, true); }),
+  ];
+  МУЛ.плакаты.forEach((м, i) => { м.position.set(-7 + i*7, 5.2, МЗ - 15.85); м.rotation.z = (i - 1)*0.06; });
+}
+function мультУбрать() {
+  for (const в of [...МУЛ.пылинки, МУЛ.я]) { if (!в) continue; world.remove(в.гр); world.remove(в.тень); world.remove(в.метка); }
+  if (МУЛ.гр) world.remove(МУЛ.гр); МУЛ.гр = null; МУЛ.пылинки = []; МУЛ.я = null; МУЛ.роботы = [];
+}
+function мультикЗапустить(после) {
+  ['menu', 'выбор', 'рекЭкран', 'over', 'сюжет'].forEach(id => $(id).classList.add('hidden'));
+  мультСобрать(); МУЛ.t = 0; МУЛ.кадр = -1; МУЛ.после = после; МУЛ.свет0 = сверху.intensity; состояние = 'мульт';
+  Snd.вкл(); scene.fog.density = 0.012;
+  $('мультПропуск').style.display = 'block';
+  try { localStorage.setItem('пыльмст-сюжет', '1'); } catch (_) {}
+}
+function мультикКонец() {
+  if (состояние !== 'мульт') return;
+  состояние = 'меню'; мультУбрать(); сверху.intensity = МУЛ.свет0; scene.fog.density = 0.021; Snd.гулВкл(false);
+  $('мультПропуск').style.display = 'none'; $('say').style.display = 'none';
+  const ф = МУЛ.после; МУЛ.после = null; ф && ф();
+}
+const МУЛ_КАДРЫ = [                                    // [до какого времени, реплика]
+  [7, '🌫 Пылинка: Раньше мы жили спокойно — у плинтуса, за ножкой шкафа. Играли, прыгали… И мой пыльный пёсик Пушок был рядом.'],
+  [12.5, '🌫 Пылинка: Однажды приехал круглый робот-пылесос. Мы — врассыпную, по углам!'],
+  [17, '🌫 Пылинка: Но он круглый — до самого угла не достаёт. Проехал мимо…'],
+  [21.5, '🌫 Пылинка: А потом приехали КВАДРАТНЫЕ.'],
+  [29, '🌫 Пылинка: Их тень накрыла нас… Мы пытались спастись — но они засасывают даже из углов!'],
+  [36, '🌫 Пылинка: С тех пор по всему дому висят объявления: «Пропала пылинка», «Пропал пыльный пёсик»…'],
+  [42, '🌫 Пылинка: Уцелела только я. Теперь я — Пыльный мститель!'],
+];
+function мультЕхать(р, x, z, скор, dt) {                // робот едет к точке, поворачиваясь мордой; true — доехал
+  const dx = x - р.position.x, dz = z - р.position.z, d = Math.hypot(dx, dz);
+  if (d < 0.1) return true; const ш = Math.min(d, скор*dt);
+  р.position.x += dx/d*ш; р.position.z += dz/d*ш;
+  let a = Math.atan2(dx, dz) - р.rotation.y; while (a > Math.PI) a -= Math.PI*2; while (a < -Math.PI) a += Math.PI*2;
+  р.rotation.y += a*Math.min(1, dt*4); return false;
+}
+function мультТик(dt) {
+  const t = (МУЛ.t += dt), [Р0, Р1, Р2] = МУЛ.роботы;
+  const к = МУЛ_КАДРЫ.findIndex(([до]) => t < до);
+  if (к < 0) { мультикКонец(); return; }
+  if (к !== МУЛ.кадр) { МУЛ.кадр = к; say(МУЛ_КАДРЫ[к][1], МУЛ_КАДРЫ[к][0] - (к ? МУЛ_КАДРЫ[к - 1][0] : 0));
+    if (к === 1) { Р0.visible = true; Р0.position.set(20, 0, МЗ + 4); Snd.гулВкл(true); }
+    if (к === 3) { Р0.visible = false; Р1.visible = Р2.visible = true; Р1.position.set(-6, 0, МЗ + 14); Р2.position.set(6, 0, МЗ + 14); Р1.rotation.y = Р2.rotation.y = Math.PI; Snd.тон(90, 1.2, 'sawtooth', 0.12, 60); }
+    if (к === 4) { Snd.турбо(); }
+    if (к === 6) { МУЛ.я.гр.visible = true; МУЛ.я.тень.visible = true; Р1.visible = Р2.visible = false; Snd.гулВкл(false); Snd.взял(); } }
+  // 🌫 пылинки: прыгают, бегут, дрожат, улетают в пасть
+  for (const в of МУЛ.пылинки) { if (!в.жив) continue; в.фаза += dt;
+    if (в.тянет) { const р = в.тянет, пасть = р.localToWorld(new THREE.Vector3(0, 0.5, 2.3)); в.x += (пасть.x - в.x)*Math.min(1, dt*3); в.z += (пасть.z - в.z)*Math.min(1, dt*3);
+      в.гр.scale.multiplyScalar(1 - dt*1.4); в.гр.rotation.y += dt*14; в.гр.position.set(в.x, 0.75 + Math.sin(в.фаза*20)*0.1, в.z);
+      if (в.гр.scale.x < 0.12) { в.жив = false; в.гр.visible = false; в.тень.visible = false; Snd.тон(700, 0.15, 'sine', 0.06, 200); } continue; }
+    if (в.куда) { const dx = в.куда.x - в.x, dz = в.куда.z - в.z, d = Math.hypot(dx, dz); if (d > 0.05) { const ш = Math.min(d, 7*dt); в.x += dx/d*ш; в.z += dz/d*ш; в.гр.rotation.y = Math.atan2(dx, dz); } }
+    const испуг = к >= 1 && к <= 4, прыг = испуг ? Math.abs(Math.sin(в.фаза*14))*0.15 : Math.abs(Math.sin(в.фаза*4))*0.55;
+    в.гр.position.set(в.x + (испуг && !в.куда ? Math.sin(в.фаза*40)*0.04 : 0), 0.75 + прыг, в.z); в.тень.position.set(в.x, 0.03, в.z);
+    if (в.хвост) в.хвост.rotation.z = Math.sin(в.фаза*(испуг ? 25 : 12))*0.6;
+    if (к === 0) { в.x += Math.sin(в.фаза*0.8)*dt*0.6; в.z += Math.cos(в.фаза*0.7)*dt*0.3; } }
+  // 🏃 к углам — как только приехал круглый
+  if (к === 1 && t > 8.2 && !МУЛ.вУглах) { МУЛ.вУглах = true;
+    МУЛ.пылинки.forEach((в, i) => { const лев = i % 2 === 0, ряд = Math.floor(i/2); в.куда = { x:(лев ? -15 : 15) + (лев ? 1 : -1)*(ряд % 2)*0.9, z:МЗ - 15 + Math.floor(ряд/2)*0.9 + (ряд % 2)*0.2 }; }); }
+  // 🤖 круглый едет вдоль плинтуса — до углов не достаёт
+  if (к >= 1 && к <= 2 && Р0.visible) { if (!МУЛ.р0) МУЛ.р0 = [[12.5, МЗ - 12.7], [-12.5, МЗ - 12.7], [-20, МЗ + 6]];
+    if (мультЕхать(Р0, ...МУЛ.р0[0], 5.2, dt) && МУЛ.р0.length > 1) МУЛ.р0.shift(); }
+  // 🟥 квадратные: тень наползает, потом в углы — и засасывают
+  if (к === 3) { мультЕхать(Р1, -6, МЗ + 6, 3, dt); мультЕхать(Р2, 6, МЗ + 6, 3, dt); }
+  if (к === 4) { const k = clamp((t - 21.5)/2, 0, 1); МУЛ.тень.material.opacity = 0.55*k*(t < 25 ? 1 : Math.max(0, 1 - (t - 25))); сверху.intensity = МУЛ.свет0*(1 - 0.55*k);
+    МУЛ.тень.position.z = МЗ - 4 - k*7;
+    const у1 = мультЕхать(Р1, -12.4, МЗ - 12.4, 4.5, dt), у2 = мультЕхать(Р2, 12.4, МЗ - 12.4, 4.5, dt);
+    for (const [р, у] of [[Р1, у1], [Р2, у2]]) { if (р.userData.воронка) р.userData.воронка.material.opacity = у ? 0.45 : 0.12;
+      if (у || t > 26) for (const в of МУЛ.пылинки) if (в.жив && !в.тянет && Math.hypot(в.x - р.position.x, в.z - р.position.z) < 5.5) { в.тянет = р; break; } } }
+  if (к === 5) { сверху.intensity += (МУЛ.свет0 - сверху.intensity)*Math.min(1, dt*2); МУЛ.пылинки.forEach(в => { if (в.жив) { в.жив = false; в.гр.visible = false; в.тень.visible = false; } });
+    МУЛ.плакаты.forEach((м, i) => { const t0 = 29.4 + i*1.8; if (t > t0 && !м.visible) { м.visible = true; м.scale.setScalar(0.01); Snd.тон(320, 0.12, 'square', 0.04, 180); }
+      if (м.visible && м.scale.x < 1) м.scale.setScalar(Math.min(1, м.scale.x + dt*4)); }); }
+  if (к === 6) { const в = МУЛ.я, k = clamp((t - 36)/1.5, 0, 1); в.гр.position.set(-5, 0.5 + k*0.3, МЗ - 15.9 + k*1.6); в.тень.position.set(-5, 0.03, МЗ - 14.3); в.гр.rotation.y = 0;
+    в.светП.intensity = 2 + Math.sin(t*4)*0.8; }
+  // 🎥 камера
+  const кам = camera;
+  if (к === 0) { const a = -0.5 + t*0.06; кам.position.set(Math.sin(a)*9, 2.6, МЗ - 10 + Math.cos(a)*9); кам.lookAt(0, 0.8, МЗ - 11); }
+  else if (к === 1) { кам.position.set(4, 3.2, МЗ - 1); кам.lookAt(Р0.position.x*0.5, 0.8, МЗ - 10); }
+  else if (к === 2) { кам.position.set(-9.5, 2.2, МЗ - 7); кам.lookAt(-14, 0.8, МЗ - 14); }
+  else if (к === 3) { кам.position.set(0, 1.1, МЗ - 9.5); кам.lookAt(0, 2.2, МЗ + 6); }
+  else if (к === 4) { if (t < 25) { кам.position.set(0, 1.0, МЗ - 12.5); кам.lookAt(0, 3.2, МЗ); } else { кам.position.set(9, 4.5, МЗ - 7); кам.lookAt(13, 0.8, МЗ - 13.5); } }
+  else if (к === 5) { кам.position.set(0, 4.8, МЗ - 6); кам.lookAt(0, 5, МЗ - 16); }
+  else { const k = clamp((t - 36)/3, 0, 1); кам.position.set(-5 + k*0.3, 1.4, МЗ - 10.5 - k*2); кам.lookAt(-5, 0.8, МЗ - 15); }
+}
+
+/* в первый раз показываем мультик сами, а после него — правила */
+const мультИПравила = () => мультикЗапустить(() => показатьСюжет(СЛАЙДЫ.length - 1));
+$('мультПропуск').onclick = () => мультикКонец();
+try { if (!localStorage.getItem('пыльмст-сюжет')) setTimeout(мультИПравила, 600); } catch (_) {}
 
 /* ═══════════ проверки по ходу игры ═══════════ */
 function проверитьСобытия(dt) {
@@ -1945,6 +2109,7 @@ function loop(now) {
     $('затаБтн').classList.toggle('жмут', П1.затаился);
     if (вдвоём) { $('рывокБтн2').classList.toggle('пусто', П2.рывокОст > 0);
       $('затаБтн2').classList.toggle('жмут', П2.затаился); }
+  } else if (состояние === 'мульт') { мультТик(dt); обновитьПыль(dt);   // 🎬 мультик «Как всё было»
   } else if (состояние === 'скример') {
     скримерT -= dt; камера(П1, camera, dt, false);
     if (вдвоём) камера(П2, camera2, dt, false);
@@ -2006,6 +2171,8 @@ window.__мкИгра = {
 
 window.__dbg = {
   get state() { return состояние; },
+  get мульт() { return { t:+МУЛ.t.toFixed(2), кадр:МУЛ.кадр, живых:МУЛ.пылинки.filter(в => в.жив).length, плакатов:МУЛ.плакаты.filter(м => м.visible).length }; },
+  мультик() { мультИПравила(); return состояние; },
   get mode() { return режим; },
   get diff() { return слож.id; },
   get place() { return место.id; },
