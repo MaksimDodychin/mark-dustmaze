@@ -131,7 +131,7 @@
   <link rel="apple-touch-icon-precomposed" sizes="180x180" href="apple-touch-icon.png">
   <meta name="msapplication-TileImage" content="icon-192.png">
   <meta name="msapplication-TileColor" content="#8a5a18">
-  <script>window.__APP_VER = "fb7f669d3b";</script>
+  <script>window.__APP_VER = "f8b5762f9d";</script>
 </head>
 <body>
 <div id="err"></div>
@@ -2049,7 +2049,12 @@ function мультТик(dt) {
 /* в первый раз показываем мультик сами, а после него — правила */
 const мультИПравила = () => мультикЗапустить(() => показатьСюжет(СЛАЙДЫ.length - 1));
 $('мультПропуск').onclick = () => мультикКонец();
-try { if (!localStorage.getItem('пыльмст-сюжет')) setTimeout(мультИПравила, 600); } catch (_) {}
+try {
+  if (!localStorage.getItem('пыльмст-сюжет')) setTimeout(() => {
+    if (состояние === 'меню' && !$('menu').classList.contains('hidden') &&
+        !localStorage.getItem('пыльмст-сюжет')) мультИПравила();
+  }, 600);
+} catch (_) {}
 
 /* ═══════════ проверки по ходу игры ═══════════ */
 function проверитьСобытия(dt) {
