@@ -131,7 +131,7 @@
   <link rel="apple-touch-icon-precomposed" sizes="180x180" href="apple-touch-icon.png">
   <meta name="msapplication-TileImage" content="icon-192.png">
   <meta name="msapplication-TileColor" content="#8a5a18">
-  <script>window.__APP_VER = "f8b5762f9d";</script>
+  <script>window.__APP_VER = "34fe6c2028";</script>
 </head>
 <body>
 <div id="err"></div>
@@ -1893,14 +1893,14 @@ $('сюжетДальше').onclick = () => {
    Снято в 3D теми же моделями, что в игре; декорация — комната с плинтусом далеко от лабиринта (z = 900). */
 const МЗ = 900;
 const МУЛ = { t:0, после:null, гр:null, пылинки:[], роботы:[], пёс:null, я:null, тень:null, плакаты:[], кадр:-1, свет0:0 };
-function клонРобота(квадрат) {                         // копия робота из игры: круглый R-9 или квадратный Q-7
+function клонРобота(квадрат, родитель=МУЛ.гр) {                         // копия робота из игры: круглый R-9 или квадратный Q-7
   const к = пылесосГр.clone(true), ориг = [], копии = [];
   пылесосГр.traverse(o => ориг.push(o)); к.traverse(o => копии.push(o));
   const пара = new Map(ориг.map((o, i) => [o, копии[i]]));
   круглыеЧасти.forEach(ч => { const c = пара.get(ч); if (c) c.visible = !квадрат; });
   квадратныеЧасти.forEach(ч => { const c = пара.get(ч); if (c) c.visible = квадрат; });
   ориг.forEach((o, i) => { if (!o.isSpotLight) return; const c = копии[i]; c.castShadow = false; c.intensity = 9; const ц = пара.get(o.target); if (ц) c.target = ц; });   // фары светят вперёд своей копии
-  к.userData.воронка = пара.get(воронка); к.visible = true; МУЛ.гр.add(к);
+  к.userData.воронка = пара.get(воронка); к.visible = true; родитель.add(к);
   return к;
 }
 function мультПылинка(x, z, огонёк) {                  // пылинка из игры; свет оставляем только у главной
@@ -2096,13 +2096,15 @@ function loop(now) {
     таймер += dt;
     игроки.forEach(P => { if (P === рульИгрок) return;
       if (P.бот) ботПылинки(P, dt); else двигатьИгрока(P, dt); });
-    обновитьРобота(dt);
+    if(netHunt){
+      if(рульИгрок){водитьПылесос(П1,dt);пылесосГр.position.set(робот.x,0,робот.z);пылесосГр.rotation.y=робот.yaw;}
+    }else обновитьРобота(dt);
     игроки.forEach(P => {
       if (P === рульИгрок) { P.вид.гр.visible = false; P.вид.тень.visible = false;
         P.вид.метка.visible = false; return; }
       рисоватьИгрока(P, dt);
     });
-    проверитьСобытия(dt);
+    if(!netHunt)проверитьСобытия(dt);
     обновитьПыль(dt);
     камера(П1, camera, dt, false);
     if (вдвоём) камера(П2, camera2, dt, false);
@@ -2167,9 +2169,19 @@ function мкФигура(и, высота, корень) {
   п.scale.set(высота*1.5, высота*0.38, 1); п.position.y = высота*1.35; g.add(п);
   корень.add(g); return g;
 }
+let netHunt=false;
+window.МКДогонялки=hunter=>{
+  netHunt=true;заКого=hunter?'пылесос':'пылинка';место=МЕСТА[0];старт();
+  игроки=[П1];П2.вид.гр.visible=false;П2.вид.тень.visible=false;П2.вид.метка.visible=false;
+  пылесосГр.visible=hunter;тень2.visible=hunter;
+  $('сюжет').classList.add('hidden');$('место').textContent=hunter?'Ты — пылесос':'Ты — пылинка';
+  say(hunter?'Найди и догони друзей в лабиринте.':'Уходи от пылесоса, которым управляет друг.',5);
+};
 window.__мкИгра = {
   моиДанные() { try { return (состояние === 'игра' ? { x:П1.x, z:П1.z, h:П1.тело_yaw } : null); } catch (_) { return null; } },
-  создать(и) { return мкФигура(и, 1.2, world); },
+  создать(и) { if(!netHunt)return мкФигура(и,1.2,world);
+    let g;if(и.охотник){g=клонРобота(!слож.круглый,world);}else{const п=сделатьПылинку(и.цвет);g=п.гр;п.тень.removeFromParent();п.метка.removeFromParent();}
+    const tag=мкПодпись(и.имя,и.цвет);tag.position.y=и.охотник?3.8:1.6;g.add(tag);world.add(g);return g; },
   двигать(g, d) { if (!d) return; g.position.set(d.x || 0, d.y || 0, d.z || 0); g.rotation.y = d.h || 0; },
   убрать(g) { world.remove(g); },
 };
